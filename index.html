@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ICU Cardio · Calcolatore Infusioni</title>
+<meta name="description" content="Calcolatore di infusione continua per Terapia Intensiva Cardiochirurgica: dose ⇄ velocità, tutte le unità, range di riferimento.">
+<meta name="theme-color" content="#0B1E2D">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+:root{
+  --navy:#0B1E2D; --navy2:#102A3E; --panel:#13324A; --line:#1E4763;
+  --teal:#2FA8A0; --teal-d:#1D7B77; --gold:#E0B04A; --gold-d:#B98A22;
+  --red:#E4572E; --amber:#E8A33D; --green:#3FB37F;
+  --txt:#E8F1F5; --dim:#93AEC0; --white:#fff;
+  --r:10px; --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --ui:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--navy);color:var(--txt);font-family:var(--ui);font-size:15px;line-height:1.45;
+  padding-bottom:env(safe-area-inset-bottom)}
+h1,h2,h3{margin:0;font-weight:700;letter-spacing:.02em}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+a{color:var(--teal)}
+
+/* ---------- HEADER ---------- */
+header{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,#0B1E2D 0%,#0B1E2Dee 100%);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.hd{max-width:1240px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.mark{width:34px;height:34px;border-radius:8px;background:linear-gradient(145deg,var(--teal),var(--teal-d));
+  display:grid;place-items:center;font-weight:800;color:#04222a;font-size:13px;letter-spacing:-.5px;
+  box-shadow:0 0 0 1px #2FA8A055, inset 0 1px 0 #ffffff40}
+.brand b{font-size:16px;display:block;line-height:1.1}
+.brand span{font-size:11px;color:var(--dim);letter-spacing:.14em;text-transform:uppercase}
+.wbox{display:flex;align-items:center;gap:8px;background:var(--navy2);border:1px solid var(--line);
+  border-radius:var(--r);padding:6px 10px}
+.wbox label{font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;font-weight:700}
+.wbox input{width:74px;background:transparent;border:0;border-bottom:2px solid var(--gold);
+  font-size:20px;font-weight:700;font-family:var(--mono);text-align:right;padding:0 2px;outline:none}
+.wbox u{text-decoration:none;color:var(--dim);font-size:13px}
+
+/* ---------- LAYOUT ---------- */
+.wrap{max-width:1240px;margin:0 auto;padding:14px}
+.cols{display:grid;grid-template-columns:330px 1fr;gap:14px;align-items:start}
+@media(max-width:900px){.cols{grid-template-columns:1fr}}
+.card{background:var(--navy2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.card>h2{padding:10px 14px;font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);
+  border-bottom:1px solid var(--line);background:#0E2537;display:flex;justify-content:space-between;align-items:center}
+.pad{padding:14px}
+
+/* ---------- SIDEBAR ---------- */
+.search{width:100%;background:var(--navy);border:1px solid var(--line);border-radius:8px;padding:9px 11px;outline:none}
+.search:focus{border-color:var(--teal)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
+.chip{border:1px solid var(--line);background:#0E2537;color:var(--dim);border-radius:999px;
+  padding:5px 11px;font-size:12px;cursor:pointer;transition:.15s;font-weight:600}
+.chip:hover{border-color:var(--teal);color:var(--txt)}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#04222a}
+.dlist{max-height:min(58vh,560px);overflow:auto;border-top:1px solid var(--line)}
+@media(max-width:900px){.dlist{max-height:290px}}
+.ditem{width:100%;text-align:left;background:none;border:0;border-bottom:1px solid #17384f;
+  padding:9px 13px;cursor:pointer;display:flex;gap:9px;align-items:baseline}
+.ditem:hover{background:#16344a}
+.ditem.on{background:linear-gradient(90deg,#1D7B7733,transparent);box-shadow:inset 3px 0 0 var(--teal)}
+.ditem b{font-weight:600;flex:1}
+.ditem i{font-style:normal;font-size:11px;color:var(--dim);font-family:var(--mono)}
+.dot{width:7px;height:7px;border-radius:50%;flex:none;transform:translateY(-1px)}
+
+/* ---------- CALCOLATORE ---------- */
+.title{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.title h3{font-size:21px;line-height:1.2}
+.tag{font-size:10px;text-transform:uppercase;letter-spacing:.12em;font-weight:800;
+  padding:3px 8px;border-radius:5px;background:#0E2537;border:1px solid var(--line);color:var(--dim)}
+.note{margin-top:8px;font-size:13px;color:#BFD6E3;background:#0E2537;border-left:3px solid var(--gold);
+  padding:9px 12px;border-radius:0 7px 7px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:640px){.grid2,.grid3{grid-template-columns:1fr}}
+fieldset{border:1px solid var(--line);border-radius:var(--r);padding:12px;margin:14px 0 0;background:#0E2537}
+legend{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--teal);font-weight:800;padding:0 7px}
+label.f{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);
+  font-weight:700;margin-bottom:4px}
+.inp,select.inp{width:100%;background:var(--navy);border:1px solid var(--line);border-radius:8px;
+  padding:9px 10px;outline:none;font-family:var(--mono)}
+.inp:focus{border-color:var(--teal);box-shadow:0 0 0 3px #2FA8A033}
+select.inp{font-family:var(--ui);appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 51%,calc(100% - 10px) 51%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:30px}
+.big{font-size:22px;font-weight:700}
+.drive{border-color:var(--gold)!important;box-shadow:0 0 0 3px #E0B04A26}
+
+/* ---------- OUTPUT ---------- */
+.out{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}
+.o{background:linear-gradient(160deg,#14364E,#0E2537);border:1px solid var(--line);border-radius:var(--r);padding:11px 12px}
+.o.key{border-color:var(--gold);background:linear-gradient(160deg,#2A2417,#0E2537)}
+.o small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.11em;color:var(--dim);font-weight:700}
+.o b{display:block;font-size:26px;font-family:var(--mono);font-weight:700;line-height:1.25;letter-spacing:-.5px}
+.o.key b{color:var(--gold)}
+.o em{font-style:normal;font-size:12px;color:var(--dim)}
+
+/* ---------- GAUGE (elemento firma) ---------- */
+.gauge{margin-top:16px}
+.grail{position:relative;height:38px;border-radius:8px;overflow:hidden;border:1px solid var(--line);
+  background:repeating-linear-gradient(90deg,#0E2537 0 9px,#122C41 9px 10px)}
+.gz{position:absolute;top:0;bottom:0}
+.gz.low{background:#3FB37F22;border-right:1px dashed #3FB37F88}
+.gz.mid{background:linear-gradient(180deg,#2FA8A055,#2FA8A022);border-right:1px dashed #E0B04A}
+.gz.high{background:#E4572E22}
+.gmark{position:absolute;top:-4px;bottom:-4px;width:3px;background:var(--gold);
+  box-shadow:0 0 10px 2px #E0B04A88;transition:left .18s ease}
+.gmark::after{content:'';position:absolute;left:50%;top:-5px;transform:translateX(-50%);
+  border:6px solid transparent;border-top-color:var(--gold)}
+.glab{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);
+  font-family:var(--mono);margin-top:6px;flex-wrap:wrap;gap:6px}
+.glab b{color:var(--txt)}
+.verdict{margin-top:10px;padding:9px 12px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid}
+.v-low{background:#3FB37F1a;border-color:#3FB37F66;color:#8FE0BC}
+.v-ok{background:#2FA8A01a;border-color:#2FA8A066;color:#8FE3DE}
+.v-high{background:#E8A33D1a;border-color:#E8A33D66;color:#F3CE93}
+.v-over{background:#E4572E22;border-color:#E4572E88;color:#FFB59C}
+
+/* ---------- TABELLA ---------- */
+.tbl-wrap{overflow:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:760px}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid #17384f;vertical-align:top}
+th{position:sticky;top:0;background:#0E2537;font-size:10px;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--gold);z-index:2;white-space:nowrap}
+tr.cat td{background:#16344a;color:var(--teal);font-weight:800;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+td.num{font-family:var(--mono);white-space:nowrap}
+tbody tr:hover{background:#16344a80}
+
+.btn{background:#0E2537;border:1px solid var(--line);border-radius:8px;padding:7px 13px;
+  cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.05em;transition:.15s}
+.btn:hover{border-color:var(--teal);color:var(--white)}
+.btn.pri{background:var(--teal);border-color:var(--teal);color:#04222a}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.warn{background:#E4572E1a;border:1px solid #E4572E66;color:#FFB59C;border-radius:8px;padding:9px 12px;
+  font-size:13px;margin-top:12px;display:none}
+footer{max-width:1240px;margin:0 auto;padding:18px 14px 40px;color:var(--dim);font-size:12px;line-height:1.6}
+footer b{color:var(--gold)}
+.hidden{display:none!important}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:#1E4763;border-radius:9px}
+::-webkit-scrollbar-track{background:#0B1E2D}
+/* ---------- MODALITÀ (adulto / pediatrico) ---------- */
+.seg{display:flex;background:var(--navy2);border:1px solid var(--line);border-radius:var(--r);padding:3px;gap:3px}
+.seg button{background:none;border:0;border-radius:7px;padding:6px 13px;cursor:pointer;font-size:12px;
+  font-weight:700;color:var(--dim);letter-spacing:.04em}
+.seg button.on{background:var(--gold);color:#241a02}
+body.ped .mark{background:linear-gradient(145deg,#E0B04A,#B98A22);color:#241a02}
+.pedbox{margin-top:14px;border:1px dashed var(--gold);border-radius:var(--r);padding:12px;background:#1D180B}
+.pedbox h4{margin:0 0 8px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px;margin-bottom:10px}
+.mini div{background:#0E2537;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.mini small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);font-weight:700}
+.mini b{font-family:var(--mono);font-size:18px}
+.badge{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;
+  border-radius:5px;background:var(--gold);color:#241a02}
+
+/* ---------- SCORE VASOATTIVI ---------- */
+.sc-out{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:14px 0}
+.sc{background:linear-gradient(160deg,#14364E,#0E2537);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.sc small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.11em;color:var(--dim);font-weight:700}
+.sc b{display:block;font-size:30px;font-family:var(--mono);font-weight:700;line-height:1.2}
+.sc em{font-style:normal;font-size:12px;color:var(--dim);display:block;margin-top:3px}
+.sc.k1 b{color:var(--gold)} .sc.k2 b{color:var(--teal)}
+.band{margin-top:6px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;display:inline-block}
+.b1{background:#3FB37F22;color:#8FE0BC} .b2{background:#2FA8A022;color:#8FE3DE}
+.b3{background:#E8A33D22;color:#F3CE93} .b4{background:#E4572E22;color:#FFB59C}
+.sc-in{width:100%;background:var(--navy);border:1px solid var(--line);border-radius:7px;
+  padding:6px 8px;font-family:var(--mono);text-align:right;outline:none}
+.sc-in:focus{border-color:var(--teal)}
+.sc-in.hot{border-color:var(--gold);background:#1D180B}
+.formula{font-family:var(--mono);font-size:11.5px;color:var(--dim);background:#0E2537;
+  border:1px solid var(--line);border-radius:8px;padding:10px 12px;line-height:1.7;overflow-x:auto}
+
+@media print{
+  body{background:#fff;color:#000}
+  header,aside,.chips,.btn,.seg,footer .noprint{display:none!important}
+  .cols{display:block!important}
+  .card{border-color:#999}
+  th{color:#000;background:#eee}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+ <div class="hd">
+  <div class="brand">
+    <div class="mark">ICU</div>
+    <div><b>Calcolatore Infusioni</b><span>Terapia Intensiva Cardiochirurgica</span></div>
+  </div>
+  <div class="seg" id="seg">
+    <button data-m="ad" class="on">Adulto</button>
+    <button data-m="pe">Pediatrico</button>
+  </div>
+  <div class="wbox">
+    <label for="peso">Peso</label>
+    <input id="peso" type="number" inputmode="decimal" value="70" min="0.1" max="300" step="0.5">
+    <u>kg</u>
+  </div>
+ </div>
+</header>
+
+<div class="wrap">
+<div class="cols">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="card">
+    <h2>Prontuario <span id="count" style="color:var(--dim);letter-spacing:0;text-transform:none"></span></h2>
+    <div class="pad" style="padding-bottom:8px">
+      <input id="q" class="search" type="search" placeholder="Cerca farmaco…" autocomplete="off">
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="dlist" id="dlist"></div>
+  </aside>
+
+  <!-- ============ CALCOLATORE ============ -->
+  <main class="card">
+    <h2>Calcolo <span class="row" style="gap:6px"><button class="btn" id="btnSc">Score vasoattivi</button><button class="btn" id="btnTab">Tabella sinottica</button></span></h2>
+    <div class="pad" id="calc">
+
+      <div class="title">
+        <h3 id="dname">—</h3>
+        <span class="tag" id="dcat"></span>
+        <span class="badge hidden" id="dped">Range pediatrico</span>
+      </div>
+      <div class="note" id="dnote"></div>
+      <div class="note hidden" id="dpedwarn" style="border-left-color:var(--red)">
+        Per questo farmaco non è impostato un range pediatrico dedicato: sono mostrati i valori dell'adulto.
+        Verificare la posologia su fonte pediatrica (protocollo di reparto, formulario pediatrico) prima dell'uso.
+      </div>
+
+      <!-- Farmaco personalizzato -->
+      <fieldset id="fsCustom" class="hidden">
+        <legend>Farmaco personalizzato</legend>
+        <div class="grid2">
+          <div><label class="f" for="cName">Nome</label><input id="cName" class="inp" type="text" placeholder="es. Fenoldopam"></div>
+          <div><label class="f" for="cUnit">Unità di dose</label><select id="cUnit" class="inp"></select></div>
+        </div>
+        <div class="grid3" style="margin-top:10px">
+          <div><label class="f" for="cMin">Dose minima</label><input id="cMin" class="inp" type="number" step="any" placeholder="0"></div>
+          <div><label class="f" for="cMant">Mantenimento</label><input id="cMant" class="inp" type="number" step="any" placeholder="0"></div>
+          <div><label class="f" for="cMax">Dose massima</label><input id="cMax" class="inp" type="number" step="any" placeholder="0"></div>
+        </div>
+      </fieldset>
+
+      <!-- Diluizione -->
+      <fieldset>
+        <legend>Diluizione / concentrazione</legend>
+        <div style="margin-bottom:10px">
+          <label class="f" for="preset">Preparazione standard</label>
+          <select id="preset" class="inp"></select>
+        </div>
+        <div class="grid3">
+          <div><label class="f" for="qty">Quantità farmaco</label><input id="qty" class="inp" type="number" step="any" value="8"></div>
+          <div><label class="f" for="qunit">Unità</label><select id="qunit" class="inp"></select></div>
+          <div><label class="f" for="vol">Volume totale (ml)</label><input id="vol" class="inp" type="number" step="any" value="50"></div>
+        </div>
+        <div style="margin-top:9px;font-size:13px;color:var(--dim);font-family:var(--mono)" id="conc"></div>
+      </fieldset>
+
+      <!-- Calcolo bidirezionale -->
+      <fieldset>
+        <legend>Calcolo bidirezionale</legend>
+        <div class="grid2">
+          <div>
+            <label class="f" for="dose">① Dose prescritta</label>
+            <div class="row" style="flex-wrap:nowrap">
+              <input id="dose" class="inp big" type="number" step="any" inputmode="decimal" style="flex:1">
+              <select id="dunit" class="inp" style="flex:1.15"></select>
+            </div>
+          </div>
+          <div>
+            <label class="f" for="rate">② Velocità pompa</label>
+            <div class="row" style="flex-wrap:nowrap">
+              <input id="rate" class="inp big" type="number" step="any" inputmode="decimal" style="flex:1">
+              <span class="inp" style="flex:none;width:66px;text-align:center;color:var(--dim)">ml/h</span>
+            </div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <span style="font-size:12px;color:var(--dim)">Modifica un campo: l'altro si aggiorna.</span>
+          <button class="btn" id="btnMin"  style="margin-left:auto">Dose min</button>
+          <button class="btn" id="btnMant">Mantenimento</button>
+          <button class="btn" id="btnMax">Dose max</button>
+        </div>
+      </fieldset>
+
+      <div class="warn" id="warn"></div>
+
+      <!-- Risultati -->
+      <div class="out">
+        <div class="o key"><small>Velocità infusione</small><b id="oMlh">—</b><em>ml/h</em></div>
+        <div class="o"><small>Velocità</small><b id="oMlm">—</b><em>ml/min</em></div>
+        <div class="o"><small>Dose oraria totale</small><b id="oDh">—</b><em id="oDhU"></em></div>
+        <div class="o"><small>Dose / 24 h</small><b id="oD24">—</b><em id="oD24U"></em></div>
+        <div class="o"><small>Autonomia preparazione</small><b id="oAut">—</b><em>ore : minuti</em></div>
+      </div>
+
+      <!-- Pannello pediatrico -->
+      <div class="pedbox hidden" id="pedBox">
+        <h4>Modalità pediatrica</h4>
+        <div class="mini">
+          <div><small>Carico idrico</small><b id="pMlkg">—</b><small style="text-transform:none;letter-spacing:0;color:var(--dim)">ml/kg/h</small></div>
+          <div><small>Volume / 24 h</small><b id="pVol24">—</b><small style="text-transform:none;letter-spacing:0;color:var(--dim)">ml/kg/24 h</small></div>
+          <div><small>Quota del mantenimento</small><b id="pQuota">—</b><small style="text-transform:none;letter-spacing:0;color:var(--dim)">% (Holliday-Segar)</small></div>
+          <div><small>Fabbisogno idrico</small><b id="pMant">—</b><small style="text-transform:none;letter-spacing:0;color:var(--dim)">ml/24 h</small></div>
+        </div>
+        <div class="row">
+          <span style="font-size:12px;color:#E8D9AE;margin-right:auto">Diluizioni a concentrazione calcolata sul peso:</span>
+          <button class="btn" id="r6">Regola del 6 · 100 ml</button>
+          <button class="btn" id="r06">Regola dello 0,6 · 100 ml</button>
+          <button class="btn" id="r3">Regola del 3 · 50 ml</button>
+        </div>
+        <div style="font-size:12px;color:#E8D9AE;margin-top:8px" id="pRule">
+          Regola del 6: 6 mg × kg in 100 ml → 1 ml/h = 1 mcg/kg/min. Regola dello 0,6: 1 ml/h = 0,1 mcg/kg/min.
+          Regola del 3 (siringa da 50 ml): 3 mg × kg in 50 ml → 1 ml/h = 1 mcg/kg/min.
+        </div>
+      </div>
+
+      <!-- Gauge -->
+      <div class="gauge" id="gaugeBox">
+        <div class="grail" id="grail">
+          <div class="gz low"  id="gzLow"></div>
+          <div class="gz mid"  id="gzMid"></div>
+          <div class="gz high" id="gzHigh"></div>
+          <div class="gmark" id="gmark" style="left:0"></div>
+        </div>
+        <div class="glab">
+          <span>min <b id="gMin">—</b></span>
+          <span>mantenimento <b id="gMant">—</b></span>
+          <span>max <b id="gMax">—</b></span>
+          <span style="color:var(--gold)">attuale <b id="gCur" style="color:var(--gold)">—</b></span>
+        </div>
+        <div class="verdict v-ok" id="verdict">Inserisci una dose o una velocità.</div>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <button class="btn pri hidden" id="btnPush">Invia questa dose ai punteggi vasoattivi</button>
+      </div>
+
+      <!-- Equivalenze -->
+      <fieldset>
+        <legend>Equivalenze di dose</legend>
+        <div class="tbl-wrap"><table style="min-width:0"><tbody id="equiv"></tbody></table></div>
+      </fieldset>
+
+    </div>
+
+    <!-- ============ SCORE VASOATTIVI ============ -->
+    <div class="pad hidden" id="scores">
+      <div class="row" style="margin-bottom:12px">
+        <button class="btn pri" id="btnBack2">← Torna al calcolo</button>
+        <button class="btn" id="btnClr">Azzera tutte le dosi</button>
+        <button class="btn" onclick="window.print()">Stampa / PDF</button>
+      </div>
+
+      <div class="title"><h3>Punteggi di supporto vasoattivo</h3></div>
+      <div class="note">Inserisci le dosi dei farmaci in corso: i punteggi si aggiornano in tempo reale.
+        Le dosi si compilano anche automaticamente dal calcolatore con il pulsante «Invia questa dose ai punteggi».
+        I coefficienti sono arbitrari per convenzione e non riflettono un'equipotenza farmacologica reale:
+        i punteggi vanno letti come indicatori di intensità del supporto e di trend, mai come singolo valore isolato.</div>
+
+      <fieldset>
+        <legend>Terapia vasoattiva in corso</legend>
+        <div class="tbl-wrap">
+          <table style="min-width:640px">
+            <thead><tr><th>Farmaco</th><th style="width:130px">Dose</th><th>Unità</th>
+              <th style="width:110px">Contributo VIS</th><th style="width:120px">Contributo NEE</th></tr></thead>
+            <tbody id="scBody"></tbody>
+          </table>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Pressione arteriosa media</legend>
+        <div class="grid2">
+          <div><label class="f" for="map">MAP (mmHg)</label><input id="map" class="inp big" type="number" step="any" inputmode="decimal" value="65"></div>
+          <div style="align-self:end;font-size:12px;color:var(--dim)">Serve per VDI e VEI. Usa la MAP misurata contestualmente alle dosi inserite.</div>
+        </div>
+      </fieldset>
+
+      <div class="sc-out">
+        <div class="sc k1"><small>VIS</small><b id="sVis">0</b><em>vasoactive-inotropic score</em><span class="band b1" id="bVis">—</span></div>
+        <div class="sc k2"><small>NEE / NED</small><b id="sNee">0</b><em>mcg/kg/min di noradrenalina equivalente</em><span class="band b1" id="bNee">—</span></div>
+        <div class="sc"><small>VDI</small><b id="sVdi">—</b><em>VIS / MAP — più alto = maggiore dipendenza</em></div>
+        <div class="sc"><small>VEI</small><b id="sVei">—</b><em>MAP / VIS — più alto = maggiore efficienza</em></div>
+      </div>
+
+      <fieldset>
+        <legend>Formule applicate</legend>
+        <div class="formula">
+<b style="color:var(--gold)">VIS</b> = dopamina + dobutamina + enoximone + 10×milrinone + 10×fenilefrina + 50×levosimendan
++ 100×(adrenalina + noradrenalina) + 10.000×vasopressina(U/kg/min) + 20×blu di metilene(mg/kg/h)
++ 10×terlipressina(mcg/min) + 0,25×angiotensina II(ng/kg/min) — dosi in mcg/kg/min salvo indicazione
+<br><br>
+<b style="color:var(--teal)">NEE</b> = noradrenalina + adrenalina + 0,01×dopamina + 0,06×fenilefrina + ⅛ (0,125)×metaraminolo
++ 2,5×vasopressina(U/min) + 0,0025×angiotensina II(ng/kg/min) + 10×terlipressina(mcg/kg/min)
++ 0,2×blu di metilene(mg/kg/h) — dosi in mcg/kg/min salvo indicazione
+<br><br>
+<b>VDI</b> = VIS / MAP &nbsp;·&nbsp; <b>VEI</b> = MAP / VIS
+        </div>
+        <div style="font-size:12px;color:var(--dim);margin-top:10px;line-height:1.6">
+          <b style="color:var(--txt)">Origine.</b> Inotropic Score di Wernovsky (1995) → VIS di Gaies (2010, cardiochirurgia pediatrica)
+          → versioni estese con levosimendan, blu di metilene, terlipressina e angiotensina II.
+          NEE nella formulazione aggiornata di Kotani et al., <i>Critical Care</i> 2023, con la correzione pubblicata il 07/03/2025
+          (fattore del metaraminolo 1/8, non 8).
+          <br><b style="color:var(--txt)">VIS esteso (Belletti 2021):</b> le trascrizioni secondarie non sono concordi sui coefficienti di blu di metilene,
+          terlipressina e angiotensina II. L'app usa i valori coerenti con l'equivalenza in noradrenalina (×100 rispetto al NEE):
+          blu di metilene ×20 (mg/kg/h), angiotensina II ×0,25 (ng/kg/min), terlipressina ×10 (mcg/min). Se il protocollo di reparto
+          adotta coefficienti diversi, confrontare il dato solo con serie calcolate allo stesso modo.
+          <br><b style="color:var(--txt)">Attenzione alla nomenclatura:</b> in letteratura «vasopressor dependency index» compare sia come
+          VIS/MAP sia, in alcuni protocolli, come MAP/VIS. Qui sono riportati entrambi in modo esplicito.
+          <br><b style="color:var(--txt)">Formulazione della noradrenalina:</b> base 1 mg/ml o tartrato 2 mg/ml cambiano la dose di un fattore 2
+          e quindi anche il punteggio: dichiarare sempre quale si usa.
+        </div>
+      </fieldset>
+    </div>
+
+    <!-- ============ TABELLA SINOTTICA ============ -->
+    <div class="pad hidden" id="tabella">
+      <div class="row" style="margin-bottom:10px">
+        <button class="btn pri" id="btnBack">← Torna al calcolo</button>
+        <button class="btn" onclick="window.print()">Stampa / PDF</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Farmaco</th><th>Unità di dose</th><th>Minima</th><th>Mantenimento</th><th>Massima</th>
+            <th>Diluizione standard</th><th>Note cliniche</th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+</div>
+
+<footer>
+  <b>Avvertenza clinica.</b> Strumento di supporto al calcolo, destinato a personale sanitario formato.
+  I range riportati sono valori orientativi per il paziente adulto in terapia intensiva cardiochirurgica e non
+  sostituiscono la prescrizione medica, il protocollo di reparto, la scheda tecnica del farmaco (RCP) né il giudizio clinico.
+  Verificare sempre concentrazione, diluente, compatibilità, via di somministrazione e dose in presenza di
+  insufficienza renale/epatica, ipotermia, CEC, ECMO o CRRT. <b>Doppio controllo indipendente</b> per tutti i farmaci ad alto rischio.
+  <br><span class="noprint">v1.2 · 26/10/2026 · funziona offline · dati non trasmessi ad alcun server</span>
+</footer>
+
+<script>
+/* ============================================================
+   1. UNITÀ E CONVERSIONI
+   ============================================================ */
+// famiglia: m=massa, u=unità internazionali, e=milliequivalenti, o=millimoli
+const FAM = { ng:['m',1e-3], mcg:['m',1], mg:['m',1e3], g:['m',1e6],
+              U:['u',1], kU:['u',1e3], mEq:['e',1], mmol:['o',1] };
+
+const DOSE_UNITS = [
+ 'ng/kg/min','mcg/kg/min','mcg/kg/h','mg/kg/min','mg/kg/h','g/kg/h',
+ 'mcg/min','mcg/h','mg/min','mg/h','g/min','g/h',
+ 'U/kg/min','U/kg/h','U/min','U/h',
+ 'mEq/kg/h','mEq/min','mEq/h',
+ 'mmol/kg/h','mmol/min','mmol/h'
+];
+const CONC_UNITS = ['ng','mcg','mg','g','U','kU','mEq','mmol'];
+
+function parseU(u){ const p=u.split('/'); return {mass:p[0], kg:p.length===3, t:p[p.length-1]}; }
+
+/* Unità di riferimento di ciascuna famiglia, usata per i ponti tra famiglie */
+const REF = { m:'g', u:'U', e:'mEq', o:'mmol' };
+
+/* Conversione di quantità.
+   Stessa famiglia → fattore di scala. Famiglie diverse (g ⇄ mEq ⇄ mmol) → solo se il farmaco
+   dichiara i fattori stechiometrici in k (es. MgSO4·7H2O: 1 g = 8,12 mEq = 4,06 mmol). */
+function convMass(v,from,to,k){
+  const a=FAM[from], b=FAM[to];
+  if(!a||!b) return null;
+  if(a[0]===b[0]) return v*a[1]/b[1];
+  if(!k) return null;
+  const ra=REF[a[0]], rb=REF[b[0]];
+  if(!(ra in k)||!(rb in k)) return null;
+  const inRefA = v*a[1]/FAM[ra][1];                 // quantità nell'unità di riferimento di partenza
+  const inRefB = inRefA * k[rb]/k[ra];              // ponte stechiometrico
+  return inRefB*FAM[rb][1]/b[1];
+}
+
+/* Converte una dose da un'unità posologica a un'altra (usa il peso).
+   Restituisce NaN se serve il peso e il peso non è valido. */
+function convDose(v,from,to,W,k){
+  const f=parseU(from), t=parseU(to);
+  if((f.kg||t.kg) && !(W>0)) return NaN;
+  let perMin = v*(f.kg?W:1)/(f.t==='h'?60:1);          // quantità/min nell'unità di partenza
+  let x = convMass(perMin,f.mass,t.mass,k); if(x===null) return null;
+  return x*(t.t==='h'?60:1)/(t.kg?W:1);
+}
+
+/* ============================================================
+   2. CATEGORIE
+   ============================================================ */
+const CAT = {
+ vaso:['Vasopressori e inotropi','#E4572E'],
+ anti:['Antiaritmici','#E0B04A'],
+ vd  :['Vasodilatatori','#3FB37F'],
+ sed :['Sedazione e analgesia','#8A7BE8'],
+ nmb :['Blocco neuromuscolare','#C060A8'],
+ ac  :['Anticoagulanti e antitrombotici','#4EA3E0'],
+ met :['Metabolici ed endocrini','#2FA8A0'],
+ diu :['Diuretici e renale','#7FC24A'],
+ el  :['Elettroliti e tamponi','#E8A33D'],
+ inf :['Antinfettivi in infusione','#9AB0BD'],
+ cus :['Farmaco personalizzato','#E0B04A']
+};
+
+/* ============================================================
+   2b. PUNTEGGI VASOATTIVI — coefficienti
+   vu/nu = unità in cui il coefficiente va applicato; iu = unità del campo di input
+   ============================================================ */
+const SC = [
+ {n:"Dopamina",                        iu:"mcg/kg/min", vu:"mcg/kg/min", v:1,     nu:"mcg/kg/min", e:0.01},
+ {n:"Dobutamina",                      iu:"mcg/kg/min", vu:"mcg/kg/min", v:1,     nu:null,         e:0},
+ {n:"Adrenalina (epinefrina)",         iu:"mcg/kg/min", vu:"mcg/kg/min", v:100,   nu:"mcg/kg/min", e:1},
+ {n:"Noradrenalina (norepinefrina)",   iu:"mcg/kg/min", vu:"mcg/kg/min", v:100,   nu:"mcg/kg/min", e:1},
+ {n:"Fenilefrina",                     iu:"mcg/kg/min", vu:"mcg/kg/min", v:10,    nu:"mcg/kg/min", e:0.06},
+ {n:"Metaraminolo",                    iu:"mcg/kg/min", vu:null,         v:0,     nu:"mcg/kg/min", e:0.125}, /* 1/8: Kotani 2023, correzione pubblicata 07/03/2025 */
+ {n:"Vasopressina (arginina-vasopressina)", iu:"U/min", vu:"U/kg/min",   v:10000, nu:"U/min",      e:2.5},
+ {n:"Terlipressina",                   iu:"mcg/h",      vu:"mcg/min",    v:10,    nu:"mcg/kg/min", e:10},
+ {n:"Angiotensina II",                 iu:"ng/kg/min",  vu:"ng/kg/min",  v:0.25,  nu:"ng/kg/min",  e:0.0025},
+ {n:"Milrinone",                       iu:"mcg/kg/min", vu:"mcg/kg/min", v:10,    nu:null,         e:0},
+ {n:"Enoximone",                       iu:"mcg/kg/min", vu:"mcg/kg/min", v:1,     nu:null,         e:0},
+ {n:"Levosimendan",                    iu:"mcg/kg/min", vu:"mcg/kg/min", v:50,    nu:null,         e:0},
+ {n:"Blu di metilene",                 iu:"mg/kg/h",    vu:"mg/kg/h",    v:20,    nu:"mg/kg/h",    e:0.2}
+];
+const SCV = {};   // dosi correnti inserite nella schermata punteggi
+
+/* ============================================================
+   2c. RANGE PEDIATRICI (dove differiscono dall'adulto)
+   ============================================================ */
+const PED = {
+ "Noradrenalina (norepinefrina)"  :{mn:.05,mt:.1,mx:2,   u:"mcg/kg/min"},
+ "Adrenalina (epinefrina)"        :{mn:.05,mt:.1,mx:1,   u:"mcg/kg/min"},
+ "Dopamina"                       :{mn:2,  mt:10, mx:20, u:"mcg/kg/min"},
+ "Dobutamina"                     :{mn:2.5,mt:10, mx:20, u:"mcg/kg/min"},
+ "Milrinone"                      :{mn:.25,mt:.5, mx:.75,u:"mcg/kg/min"},
+ "Vasopressina (arginina-vasopressina)":{mn:.0003,mt:.0005,mx:.002,u:"U/kg/min"},
+ "Fenilefrina"                    :{mn:.1, mt:.5, mx:5,  u:"mcg/kg/min"},
+ "Isoprenalina (isoproterenolo)"  :{mn:.02,mt:.05,mx:.5, u:"mcg/kg/min"},
+ "Alprostadil (PGE1)"             :{mn:5,  mt:20, mx:100,u:"ng/kg/min"},
+ "Nitroglicerina"                 :{mn:.5, mt:2,  mx:10, u:"mcg/kg/min"},
+ "Nitroprussiato di sodio"        :{mn:.5, mt:2,  mx:8,  u:"mcg/kg/min"},
+ "Nicardipina"                    :{mn:.5, mt:1,  mx:3,  u:"mcg/kg/min"},
+ "Amiodarone"                     :{mn:.3, mt:.6, mx:.9, u:"mg/kg/h"},
+ "Lidocaina"                      :{mn:20, mt:30, mx:50, u:"mcg/kg/min"},
+ "Esmololo"                       :{mn:50, mt:100,mx:300,u:"mcg/kg/min"},
+ "Propofol"                       :{mn:1,  mt:2,  mx:4,  u:"mg/kg/h",
+   pn:"RCP: NON indicato per la sedazione in terapia intensiva in pazienti di età ≤16 anni (rischio di PRIS). Il range è riferito all'uso anestesiologico/procedurale breve."},
+ "Midazolam"                      :{mn:.05,mt:.1, mx:.3, u:"mg/kg/h"},
+ "Dexmedetomidina"                :{mn:.2, mt:.5, mx:1,  u:"mcg/kg/h"},
+ "Fentanil"                       :{mn:1,  mt:2,  mx:5,  u:"mcg/kg/h"},
+ "Remifentanil"                   :{mn:.05,mt:.15,mx:.5, u:"mcg/kg/min"},
+ "Morfina"                        :{mn:.01,mt:.03,mx:.1, u:"mg/kg/h"},
+ "Ketamina"                       :{mn:.5, mt:1,  mx:2,  u:"mg/kg/h"},
+ "Cisatracurio"                   :{mn:1,  mt:2,  mx:4,  u:"mcg/kg/min"},
+ "Rocuronio"                      :{mn:5,  mt:10, mx:15, u:"mcg/kg/min"},
+ "Vecuronio"                      :{mn:.8, mt:1,  mx:2,  u:"mcg/kg/min"},
+ "Eparina sodica non frazionata"  :{mn:15, mt:20, mx:28, u:"U/kg/h"},
+ "Bivalirudina"                   :{mn:.03,mt:.1, mx:.25,u:"mg/kg/h"},
+ "Acido tranexamico"              :{mn:1,  mt:2,  mx:5,  u:"mg/kg/h"},
+ "Insulina rapida (regolare)"     :{mn:.02,mt:.05,mx:.1, u:"U/kg/h"},
+ "Furosemide"                     :{mn:.05,mt:.1, mx:.4, u:"mg/kg/h"},
+ "Aminofillina"                   :{mn:.5, mt:.8, mx:1,  u:"mg/kg/h"},
+ "Potassio cloruro (KCl)"         :{mn:.1, mt:.25,mx:.5, u:"mEq/kg/h"},
+ "Glucosio 33%"                   :{mn:.24,mt:.36,mx:.72,u:"g/kg/h"}
+};
+let PEDIA = false;
+
+/* ============================================================
+   3. DATABASE FARMACI
+   n=nome, c=categoria, u=[unità di dose selezionabili], mn/mt/mx=range (nella u[0])
+   d=[[quantità, unità, volume ml], …]  no=nota clinica
+   ============================================================ */
+const D = [
+/* ---------- VASOPRESSORI E INOTROPI ---------- */
+{n:"Noradrenalina (norepinefrina)",c:"vaso",u:["mcg/kg/min","mcg/min","mg/h"],mn:.01,mt:.1,mx:1,
+ d:[[8,"mg",50],[4,"mg",50],[16,"mg",50],[8,"mg",100],[4,"mg",250]],
+ no:"Prima scelta nello shock vasoplegico post-CEC e nello shock settico (MAP target ≥65 mmHg). Con noradrenalina 0,25–0,5 mcg/kg/min aggiungere vasopressina come secondo agente invece di aumentare ulteriormente (Surviving Sepsis Campaign 2021). Via centrale obbligatoria (rischio necrosi da stravaso: antidoto fentolamina). Verificare se la prescrizione è espressa come base o come sale tartrato (rapporto ≈1:2)."},
+{n:"Adrenalina (epinefrina)",c:"vaso",u:["mcg/kg/min","mcg/min"],mn:.01,mt:.05,mx:.5,
+ d:[[5,"mg",50],[2,"mg",50],[1,"mg",100],[10,"mg",100]],
+ no:"Inotropo/vasopressore di terza linea; nel post-CEC utile nella sindrome da bassa portata. Dosi <0,05 mcg/kg/min prevalentemente β; >0,1 mcg/kg/min prevalenza α. Monitorare lattati, glicemia e tachiaritmie."},
+{n:"Dopamina",c:"vaso",u:["mcg/kg/min"],mn:2,mt:5,mx:20,
+ d:[[200,"mg",50],[400,"mg",250],[200,"mg",250]],
+ no:"Non raccomandata come vasopressore di prima linea (maggiore incidenza di aritmie). Nessun beneficio renale a dose 'dopaminergica'. 2–5 mcg/kg/min effetto dopaminergico, 5–10 β, >10 α."},
+{n:"Dobutamina",c:"vaso",u:["mcg/kg/min"],mn:2.5,mt:5,mx:20,
+ d:[[250,"mg",50],[500,"mg",250],[250,"mg",250]],
+ no:"Inotropo β1 di riferimento nella sindrome da bassa portata post-cardiochirurgica. Può causare vasodilatazione, ipotensione e tachicardia; attenzione in caso di FA rapida o ostruzione dinamica del tratto di efflusso."},
+{n:"Dopexamina",c:"vaso",u:["mcg/kg/min"],mn:.5,mt:1,mx:6,
+ d:[[50,"mg",50]],
+ no:"β2 e dopaminergico: inotropo con vasodilatazione splancnica. Tachicardia dose-dipendente; impiego limitato."},
+{n:"Isoprenalina (isoproterenolo)",c:"vaso",u:["mcg/kg/min","mcg/min"],mn:.01,mt:.05,mx:.2,
+ d:[[2,"mg",50],[1,"mg",50],[5,"mg",250]],
+ no:"Cronotropo puro: bradicardia sintomatica, blocco AV in attesa di pacing, supporto del cuore denervato dopo trapianto, torsione di punta bradicardia-dipendente. Aumenta marcatamente il consumo miocardico di O₂."},
+{n:"Fenilefrina",c:"vaso",u:["mcg/kg/min","mcg/min"],mn:.1,mt:.5,mx:3,
+ d:[[10,"mg",50],[50,"mg",250],[10,"mg",100]],
+ no:"α1 puro: utile quando la tachiaritmia limita l'uso di noradrenalina e nella ostruzione dinamica (SAM, cardiomiopatia ipertrofica). Provoca bradicardia riflessa e riduzione della gittata."},
+{n:"Vasopressina (arginina-vasopressina)",c:"vaso",u:["U/min","U/kg/min","U/h"],mn:.01,mt:.03,mx:.04,
+ d:[[20,"U",50],[40,"U",100],[20,"U",100]],
+ no:"Secondo vasopressore nello shock vasoplegico e nella vasoplegia post-CEC; dose fissa non titolata (0,03 U/min), in genere non oltre 0,04–0,06 U/min. Efficace nell'ipertensione polmonare perché non aumenta le PVR. Rischio di ischemia digitale e mesenterica, iponatriemia."},
+{n:"Terlipressina",c:"vaso",u:["mg/h","mcg/kg/h"],mn:.04,mt:.083,mx:.5,
+ d:[[2,"mg",50],[4,"mg",50]],
+ no:"Analogo a lunga durata: shock vasoplegico refrattario, sindrome epatorenale. Infusione continua (preferita ai boli, meno eventi avversi): avvio 2 mg/24 h (0,083 mg/h), fino a un massimo di 12 mg/24 h (0,5 mg/h) nella HRS (EMA 2022); nello shock settico in studio 1–1,3 mcg/kg/h. Rischio di insufficienza respiratoria grave/fatale: evitare in sovraccarico di volume, creatinina ≥5 mg/dl, ACLF grado 3 o MELD ≥39. Sorvegliare ischemia cutanea, mesenterica e periferica, iponatriemia, bradicardia."},
+{n:"Angiotensina II",c:"vaso",u:["ng/kg/min"],mn:5,mt:20,mx:80,
+ d:[[2.5,"mg",500],[5,"mg",500]],
+ no:"Shock vasodilatatorio refrattario ad alte dosi di catecolamine (anche vasoplegia post-CEC/LVAD). Avvio 20 ng/kg/min, titolazione ogni 5 min; ≤80 ng/kg/min nelle prime 3 h, poi ≤40. Profilassi antitrombotica raccomandata."},
+{n:"Milrinone",c:"vaso",u:["mcg/kg/min"],mn:.125,mt:.375,mx:.75,
+ d:[[10,"mg",50],[20,"mg",100],[20,"mg",50]],
+ no:"Inodilatatore (PDE-3): bassa portata con elevate resistenze polmonari, disfunzione del ventricolo destro, svezzamento dalla CEC. Eliminazione renale → ridurre in AKI. Ipotensione: spesso richiede associazione con noradrenalina. Bolo di carico 25–50 mcg/kg spesso omesso in ICU."},
+{n:"Enoximone",c:"vaso",u:["mcg/kg/min"],mn:2.5,mt:5,mx:20,
+ d:[[100,"mg",50],[100,"mg",100]],
+ no:"PDE-3 inibitore ad eliminazione epatica; alternativa al milrinone in insufficienza renale. RCP: mantenimento 5–20 mcg/kg/min per non oltre 48 h (2,5 come avvio prudente in insufficienza renale o ipotensione). Diluire 1:1 solo in NaCl 0,9% o acqua ppi (cristallizza in glucosata) e solo in siringhe/contenitori di plastica: nel vetro si formano cristalli entro 1 h."},
+{n:"Levosimendan",c:"vaso",u:["mcg/kg/min"],mn:.05,mt:.1,mx:.2,
+ d:[[12.5,"mg",500],[12.5,"mg",250],[5,"mg",500]],
+ no:"Sensibilizzante al calcio: disfunzione ventricolare sinistra grave, difficile svezzamento dalla CEC, pretrattamento preoperatorio. Infusione 24 h; il metabolita attivo OR-1896 prolunga l'effetto fino a 7–9 giorni. Bolo di carico generalmente evitato per il rischio di ipotensione."},
+{n:"Blu di metilene",c:"vaso",u:["mg/kg/h","mg/h"],mn:.25,mt:.5,mx:2,
+ d:[[100,"mg",50],[500,"mg",250]],
+ no:"Vasoplegia refrattaria post-CEC: bolo 1,5–2 mg/kg in 20–30 min, poi infusione. Inibisce la guanilato-ciclasi. Controindicato con SSRI/IMAO (sindrome serotoninergica) e nel deficit di G6PD; interferisce con la SpO₂."},
+{n:"Metaraminolo",c:"vaso",u:["mg/h","mcg/kg/min"],mn:.5,mt:2,mx:10,
+ d:[[10,"mg",50],[20,"mg",50]],
+ no:"Simpaticomimetico α prevalente, utilizzabile per via periferica in attesa di accesso centrale. Tachifilassi con l'uso prolungato."},
+
+/* ---------- ANTIARITMICI ---------- */
+{n:"Amiodarone",c:"anti",u:["mg/h","mg/min","mg/kg/h"],mn:15,mt:30,mx:60,
+ d:[[900,"mg",500],[600,"mg",250],[300,"mg",50],[900,"mg",250]],
+ no:"FA post-cardiochirurgica, TV/FV ricorrente. RCP: carico 5 mg/kg in 250 ml G5% in 20 min–2 h; mantenimento 10–20 mg/kg/24 h, di norma 600–800 fino a 1200 mg/24 h (25–50 mg/h). Schema alternativo: 1 mg/min per 6 h (60 mg/h) poi 0,5 mg/min (30 mg/h). Solo glucosata 5%, concentrazione non inferiore a 600 mg/l (0,6 mg/ml), via centrale quando possibile (flebite); preferire set senza DEHP (il farmaco estrae DEHP dal PVC). Linea dedicata. Sorvegliare QT, bradicardia, ipotensione, funzione tiroidea ed epatica."},
+{n:"Lidocaina",c:"anti",u:["mg/min","mcg/kg/min","mg/kg/h"],mn:1,mt:2,mx:4,
+ d:[[2000,"mg",500],[1000,"mg",250],[1000,"mg",500]],
+ no:"Aritmie ventricolari; anche come analgesico sistemico (1–1,5 mg/kg/h). Carico 1–1,5 mg/kg. Ridurre in scompenso, epatopatia ed età avanzata. Tossicità: parestesie periorali, tremori, convulsioni, blocchi."},
+{n:"Esmololo",c:"anti",u:["mcg/kg/min"],mn:25,mt:50,mx:300,
+ d:[[2500,"mg",250],[100,"mg",10],[2500,"mg",500]],
+ no:"β1-bloccante ultrabreve (emivita 9 min): controllo della frequenza in FA rapida, tempesta aritmica, controllo di dP/dt nella dissezione aortica. Carico 500 mcg/kg in 1 min opzionale. Rapidamente reversibile: ideale nel paziente emodinamicamente instabile."},
+{n:"Landiololo",c:"anti",u:["mcg/kg/min"],mn:1,mt:10,mx:40,
+ d:[[300,"mg",50],[300,"mg",60]],
+ no:"β1-bloccante ultraselettivo (rapporto β1/β2 ≈255): controllo della frequenza in tachiaritmie sopraventricolari con disfunzione ventricolare, incluse FA post-cardiochirurgica e sepsi. Minore effetto inotropo negativo rispetto all'esmololo."},
+{n:"Diltiazem",c:"anti",u:["mg/h","mcg/kg/min"],mn:5,mt:10,mx:15,
+ d:[[100,"mg",100],[50,"mg",50],[125,"mg",125]],
+ no:"Controllo della frequenza in FA/flutter quando i β-bloccanti sono controindicati. Bolo 0,25 mg/kg in 2 min. Evitare in disfunzione sistolica significativa (FE <40%) e in associazione a β-bloccanti EV."},
+{n:"Verapamil",c:"anti",u:["mg/h"],mn:2.5,mt:5,mx:10,
+ d:[[50,"mg",50]],
+ no:"Alternativa al diltiazem; inotropo negativo più marcato. Controindicato in TV, WPW con FA preeccitata e disfunzione ventricolare grave."},
+{n:"Procainamide",c:"anti",u:["mg/min","mcg/kg/min"],mn:1,mt:2,mx:4,
+ d:[[2000,"mg",500],[1000,"mg",250]],
+ no:"TV monomorfa stabile, FA preeccitata (WPW). Carico 10–17 mg/kg a ≤50 mg/min. Sospendere se ipotensione, allargamento del QRS >50% o dose totale 17 mg/kg. Monitorare NAPA in insufficienza renale."},
+
+/* ---------- VASODILATATORI ---------- */
+{n:"Nitroglicerina",c:"vd",u:["mcg/kg/min","mcg/min"],mn:.07,mt:.5,mx:5,
+ d:[[50,"mg",50],[50,"mg",250],[25,"mg",250]],
+ no:"Venodilatatore prevalente: ischemia miocardica, congestione, ipertensione post-operatoria, spasmo dei graft arteriosi. Avvio 5 mcg/min (≈0,07 mcg/kg/min), incrementi di 5 mcg/min ogni 3–5 min, poi 10–20; nell'adulto raramente oltre 200–400 mcg/min (il massimo di riferimento 5 mcg/kg/min ≈ 350 mcg/min a 70 kg). Tolleranza dopo 24–48 h. Controindicata con inibitori PDE-5. Usare set non in PVC (adsorbimento): con il PVC servono dosi maggiori."},
+{n:"Nitroprussiato di sodio",c:"vd",u:["mcg/kg/min"],mn:.3,mt:1,mx:8,
+ d:[[50,"mg",50],[50,"mg",250],[50,"mg",500]],
+ no:"Arteriodilatatore potente a rapidissimo effetto: crisi ipertensiva, riduzione del post-carico, dissezione aortica (sempre dopo β-blocco). Fotoprotezione obbligatoria. Rischio di tossicità da cianuro/tiocianato: evitare >8–10 mcg/kg/min per oltre 10 minuti; cautela in insufficienza renale ed epatica."},
+{n:"Urapidil",c:"vd",u:["mg/h","mcg/kg/min"],mn:5,mt:15,mx:30,
+ d:[[250,"mg",50],[250,"mg",100],[100,"mg",50]],
+ no:"α1-bloccante con azione centrale 5-HT1A: ipertensione post-operatoria; non provoca tachicardia riflessa né aumenta la pressione intracranica. Bolo 12,5–25 mg."},
+{n:"Clevidipina",c:"vd",u:["mg/h"],mn:1,mt:4,mx:21,
+ d:[[50,"mg",100],[25,"mg",50]],
+ no:"Calcio-antagonista diidropiridinico ultrabreve (emivita 1 min) in emulsione lipidica 0,5 mg/ml: controllo pressorio perioperatorio. Apporto lipidico 0,2 kcal/ml: considerare nel bilancio calorico. Cambio linea ogni 12 h; controindicata in allergia a soia/uovo e nelle dislipidemie gravi."},
+{n:"Nicardipina",c:"vd",u:["mg/h"],mn:3,mt:5,mx:15,
+ d:[[25,"mg",250],[50,"mg",250],[25,"mg",100]],
+ no:"Diidropiridinico EV per ipertensione post-operatoria; effetto più prolungato della clevidipina. Via centrale preferibile (flebite); ridurre in epatopatia."},
+{n:"Fenoldopam",c:"vd",u:["mcg/kg/min"],mn:.03,mt:.1,mx:1.6,
+ d:[[10,"mg",250],[20,"mg",250]],
+ no:"Agonista dopaminergico DA-1: vasodilatazione con incremento del flusso renale; studiato nella nefroprotezione post-CEC (evidenza non conclusiva). Evitare nel glaucoma."},
+{n:"Labetalolo",c:"vd",u:["mg/h","mg/min"],mn:20,mt:60,mx:160,
+ d:[[200,"mg",200],[100,"mg",100],[300,"mg",300]],
+ no:"α+β bloccante: ipertensione post-operatoria, dissezione aortica. Bolo 10–20 mg ripetibile. Evitare in asma, bradicardia e scompenso acuto."},
+{n:"Iloprost (ev)",c:"vd",u:["ng/kg/min"],mn:.5,mt:1,mx:2,
+ d:[[50,"mcg",50],[100,"mcg",100]],
+ no:"Analogo della prostaciclina per ipertensione polmonare e disfunzione del ventricolo destro; anche per via inalatoria. Ipotensione sistemica dose-dipendente, inibizione piastrinica."},
+{n:"Epoprostenolo (ev)",c:"vd",u:["ng/kg/min"],mn:1,mt:2,mx:10,
+ d:[[.5,"mg",50],[1,"mg",100]],
+ no:"Prostaciclina a emivita brevissima (<6 min): ipertensione polmonare grave, crisi di ipertensione polmonare post-operatoria. Mai interrompere bruscamente (rebound). Solo con diluente dedicato alcalino."},
+{n:"Alprostadil (PGE1)",c:"vd",u:["ng/kg/min"],mn:5,mt:10,mx:20,
+ d:[[500,"mcg",50],[500,"mcg",250]],
+ no:"Vasodilatatore polmonare selettivo relativo: disfunzione del ventricolo destro, ipertensione polmonare post-CEC, mantenimento della pervietà del dotto arterioso in età pediatrica (0,01–0,1 mcg/kg/min). Apnea nel neonato."},
+
+/* ---------- SEDAZIONE E ANALGESIA ---------- */
+{n:"Propofol",c:"sed",u:["mg/kg/h","mcg/kg/min","mg/h"],mn:.5,mt:2,mx:4,
+ d:[[1000,"mg",100],[2000,"mg",100],[500,"mg",50]],
+ no:"Sedazione di riferimento nel fast-track cardiochirurgico (risveglio rapido, estubazione precoce); per la sedazione leggera prolungata il focused update PADIS 2025 suggerisce la dexmedetomidina rispetto al propofol. RCP: non indicato per la sedazione in terapia intensiva in pazienti di età ≤16 anni; non superare 4 mg/kg/h. Ipotensione e bradicardia dose-dipendenti. Rischio di PRIS con dosi >4 mg/kg/h per >48 h: sorvegliare lattati, CK, trigliceridi, acidosi metabolica. Apporto lipidico 1,1 kcal/ml (1%). Linea dedicata, cambio ogni 12 h."},
+{n:"Midazolam",c:"sed",u:["mg/kg/h","mg/h"],mn:.02,mt:.06,mx:.2,
+ d:[[100,"mg",50],[50,"mg",50],[50,"mg",100]],
+ no:"Accumulo nel paziente critico (metaboliti attivi, insufficienza renale/epatica, obesità): prolunga la ventilazione. Preferire strategie propofol/dexmedetomidina-based. Rischio di delirium; sospensione graduale dopo uso prolungato."},
+{n:"Dexmedetomidina",c:"sed",u:["mcg/kg/h"],mn:.2,mt:.7,mx:1.4,
+ d:[[200,"mcg",50],[400,"mcg",100],[1000,"mcg",250]],
+ no:"α2-agonista: sedazione leggera e cooperante; il focused update PADIS 2025 la suggerisce rispetto al propofol per la sedazione leggera nel paziente ventilato (meno delirium, più tempo nel target, più bradicardia). In cardiochirurgia il trial DECADE (Lancet 2020) non ha mostrato riduzione di FA né di delirium post-operatori: non usarla con questo scopo. Bolo di carico sconsigliato in ICU (ipotensione, bradicardia). Non causa depressione respiratoria: utilizzabile durante e dopo lo svezzamento."},
+{n:"Remifentanil",c:"sed",u:["mcg/kg/min","mcg/kg/h"],mn:.025,mt:.1,mx:.5,
+ d:[[2,"mg",50],[5,"mg",50],[5,"mg",100]],
+ no:"Oppioide a metabolismo esterasico, indipendente da rene e fegato: ideale nel fast-track. Nessun accumulo, ma iperalgesia e sindrome da sospensione: prevedere sempre un'analgesia ponte prima dell'interruzione. Bradicardia e rigidità toracica a dosi elevate."},
+{n:"Fentanil",c:"sed",u:["mcg/kg/h","mcg/h"],mn:.5,mt:1.5,mx:5,
+ d:[[1000,"mcg",50],[2500,"mcg",50],[500,"mcg",50]],
+ no:"Analgesia continua standard in ICU. Accumulo nel tessuto adiposo con infusioni prolungate (contesto-sensibile). Ridurre in insufficienza epatica e nell'anziano."},
+{n:"Sufentanil",c:"sed",u:["mcg/kg/h","mcg/h"],mn:.15,mt:.5,mx:1.5,
+ d:[[250,"mcg",50],[500,"mcg",100]],
+ no:"Potenza ~10 volte il fentanil, maggiore stabilità emodinamica. Ampiamente usato in cardioanestesia."},
+{n:"Morfina",c:"sed",u:["mg/h","mg/kg/h"],mn:1,mt:3,mx:10,
+ d:[[50,"mg",50],[100,"mg",100]],
+ no:"Metabolita attivo M6G ad accumulo renale: cautela in AKI. Istaminoliberazione e vasodilatazione; utile nell'edema polmonare acuto e nella dispnea."},
+{n:"Ketamina",c:"sed",u:["mg/kg/h","mg/h"],mn:.1,mt:.3,mx:2,
+ d:[[500,"mg",50],[250,"mg",50],[200,"mg",100]],
+ no:"Analgesia a basso dosaggio (0,1–0,3 mg/kg/h) risparmiatrice di oppioidi; sedazione a dosi maggiori. Preserva la pressione arteriosa e il drive respiratorio, broncodilatatore. Ipersalivazione e fenomeni psicodislettici (associare benzodiazepina se necessario)."},
+{n:"Clonidina",c:"sed",u:["mcg/kg/h","mcg/h"],mn:.2,mt:.5,mx:2,
+ d:[[750,"mcg",50],[1500,"mcg",50]],
+ no:"α2-agonista: adiuvante nella sedazione, astinenza da oppioidi/alcol, delirium iperattivo. Bradicardia e ipotensione; ipertensione da rebound se sospesa bruscamente."},
+{n:"Tiopentale",c:"sed",u:["mg/kg/h"],mn:1,mt:3,mx:5,
+ d:[[2500,"mg",100],[1000,"mg",50]],
+ no:"Coma barbiturico per ipertensione endocranica refrattaria o stato di male. Ipotensione grave, immunosoppressione, accumulo marcato. Monitoraggio EEG (burst-suppression). Soluzione alcalina: incompatibile con la maggior parte dei farmaci."},
+{n:"Naloxone",c:"sed",u:["mg/h","mcg/kg/h"],mn:.1,mt:.2,mx:.8,
+ d:[[2,"mg",50],[4,"mg",100]],
+ no:"Antagonista oppioide in infusione (emivita più breve degli agonisti): dose oraria pari a ⅔ della dose bolo efficace. Rischio di dolore acuto, ipertensione, edema polmonare."},
+{n:"Flumazenil",c:"sed",u:["mg/h"],mn:.1,mt:.2,mx:.4,
+ d:[[2.5,"mg",50],[1,"mg",50]],
+ no:"Antagonista benzodiazepinico: rischio di convulsioni nel paziente in terapia cronica o in intossicazione mista con antidepressivi triciclici."},
+
+/* ---------- BLOCCO NEUROMUSCOLARE ---------- */
+{n:"Cisatracurio",c:"nmb",u:["mcg/kg/min","mg/kg/h"],mn:.5,mt:3,mx:10,
+ d:[[150,"mg",50],[100,"mg",50],[200,"mg",100]],
+ no:"Degradazione di Hofmann indipendente da rene e fegato: primo NMB nel paziente critico e nell'ARDS. RCP in ICU: avvio 3 mcg/kg/min (0,18 mg/kg/h), range 0,5–10,2 mcg/kg/min con ampia variabilità individuale. Adattare in ipotermia (metabolismo rallentato). Monitoraggio TOF (obiettivo 1–2/4). Sempre in associazione a sedazione e analgesia adeguate."},
+{n:"Rocuronio",c:"nmb",u:["mcg/kg/min","mg/kg/h"],mn:5,mt:8,mx:12,
+ d:[[500,"mg",50],[250,"mg",50]],
+ no:"Eliminazione epatobiliare: accumulo in epatopatia. Antagonizzabile con sugammadex (2–16 mg/kg). Onset rapido, utile nella RSI."},
+{n:"Atracurio",c:"nmb",u:["mcg/kg/min","mg/kg/h"],mn:5,mt:8,mx:20,
+ d:[[500,"mg",50],[250,"mg",50]],
+ no:"Metabolita laudanosina potenzialmente epilettogeno con infusioni prolungate; istaminoliberazione (ipotensione, broncospasmo). Conservare in frigorifero."},
+{n:"Vecuronio",c:"nmb",u:["mcg/kg/min","mg/kg/h"],mn:.8,mt:1,mx:1.7,
+ d:[[50,"mg",50],[20,"mg",50]],
+ no:"Metabolita attivo 3-desacetil a eliminazione renale: accumulo in AKI con paralisi prolungata. Elevata stabilità emodinamica."},
+{n:"Pancuronio",c:"nmb",u:["mcg/kg/min"],mn:.5,mt:1,mx:1.7,
+ d:[[20,"mg",50]],
+ no:"Lunga durata, vagolitico (tachicardia). Eliminazione renale: evitare in AKI. Impiego oggi marginale."},
+
+/* ---------- ANTICOAGULANTI E ANTITROMBOTICI ---------- */
+{n:"Eparina sodica non frazionata",c:"ac",u:["U/kg/h","U/h"],mn:5,mt:15,mx:25,
+ d:[[25000,"U",500],[25000,"U",250],[20000,"U",500],[50000,"U",500]],
+ no:"TEV: bolo 80 U/kg poi 18 U/kg/h (nomogramma); SCA: bolo 60–70 U/kg (max 5000 U) poi 12–15 U/kg/h (max 1000 U/h). Le titolazioni successive seguono il nomogramma di reparto. Target aPTT ratio 1,5–2,5 o anti-Xa 0,3–0,7 UI/ml; controllo dopo 6 h da ogni variazione. In ECMO in genere 7–20 U/kg/h con target ridotti (aPTT 1,5×, ACT 180–220 s). Sorvegliare piastrine dal giorno 4 (HIT: score 4T)."},
+{n:"Argatroban",c:"ac",u:["mcg/kg/min"],mn:.2,mt:1,mx:10,
+ d:[[250,"mg",250],[50,"mg",50]],
+ no:"Inibitore diretto della trombina per HIT. Avvio 2 mcg/kg/min; ridurre a 0,5–1 in insufficienza epatica, scompenso, post-cardiochirurgia (fino a 0,2). Target aPTT 1,5–3× il basale. Prolunga l'INR: attenzione nel passaggio a warfarin."},
+{n:"Bivalirudina",c:"ac",u:["mg/kg/h"],mn:.03,mt:.15,mx:.25,
+ d:[[250,"mg",50],[250,"mg",250]],
+ no:"Inibitore diretto della trombina, eliminazione renale/enzimatica: HIT, anticoagulazione in CEC e in ECMO (0,03–0,2 mg/kg/h). Emivita 25 min. Rischio di trombosi in zone di stasi ematica (circuiti, cavità)."},
+{n:"Eptifibatide",c:"ac",u:["mcg/kg/min"],mn:.5,mt:2,mx:2,
+ d:[[75,"mg",100],[20,"mg",10]],
+ no:"Anti-GPIIb/IIIa: sindrome coronarica acuta, bridge peri-procedurale. Ridurre a 1 mcg/kg/min se eGFR <50; controindicato in dialisi. Sospendere 2–4 h prima della chirurgia."},
+{n:"Tirofiban",c:"ac",u:["mcg/kg/min"],mn:.05,mt:.1,mx:.15,
+ d:[[12.5,"mg",250],[5,"mg",100]],
+ no:"Anti-GPIIb/IIIa; bolo 25 mcg/kg poi infusione 0,15 mcg/kg/min (0,075 se eGFR <30). Monitorare piastrine a 2–6 h (trombocitopenia acuta)."},
+{n:"Acido tranexamico",c:"ac",u:["mg/kg/h","mg/h"],mn:1,mt:2,mx:2,
+ d:[[2000,"mg",50],[1000,"mg",100],[5000,"mg",500]],
+ no:"Antifibrinolitico in cardiochirurgia: bolo 10–30 mg/kg poi 1–2 mg/kg/h. Dose totale cumulativa da contenere (<100 mg/kg) per il rischio di convulsioni post-operatorie. Ridurre in insufficienza renale."},
+{n:"Alteplase (r-tPA)",c:"ac",u:["mg/h"],mn:.25,mt:1,mx:2,
+ d:[[50,"mg",50],[20,"mg",50]],
+ no:"Trombolisi locoregionale/disostruzione di cateteri e trombosi di protesi valvolari (schemi a basse dosi prolungate). Il protocollo sistemico dell'embolia polmonare è diverso (100 mg in 2 h). Controindicazioni assolute in fase post-operatoria precoce."},
+
+/* ---------- METABOLICI ED ENDOCRINI ---------- */
+{n:"Insulina rapida (regolare)",c:"met",u:["U/h","U/kg/h"],mn:.5,mt:2,mx:10,
+ d:[[50,"U",50],[100,"U",100],[50,"U",250]],
+ no:"Controllo glicemico post-cardiochirurgico: target generalmente 140–180 mg/dl (protocolli più stretti solo con monitoraggio intensivo). Lavare il deflussore con 20 ml della soluzione (adsorbimento sul PVC). Controllo glicemico orario in fase di titolazione, attenzione a ipokaliemia e ipoglicemia."},
+{n:"Glucosio 33%",c:"met",u:["g/h","g/min"],mn:5,mt:10,mx:25,
+ d:[[33,"g",100],[66,"g",200],[10,"g",100]],
+ no:"Apporto glucidico e correzione dell'ipoglicemia. Glucosio 33% = 0,33 g/ml; 10% = 0,10 g/ml. Concentrazioni >12,5% richiedono via centrale. Massimo di ossidazione ~4–5 mg/kg/min."},
+{n:"Idrocortisone",c:"met",u:["mg/h"],mn:4,mt:8.3,mx:16.7,
+ d:[[200,"mg",50],[200,"mg",100],[400,"mg",100]],
+ no:"200 mg/24 h in infusione continua (8,3 mg/h) nello shock settico refrattario e nella vasoplegia post-CEC; infusione continua preferita ai boli per la minore variabilità glicemica. Sorvegliare glicemia, sodio e infezioni."},
+{n:"Liotironina (T3)",c:"met",u:["mcg/kg/h","mcg/h"],mn:.05,mt:.1,mx:.2,
+ d:[[100,"mcg",50],[200,"mcg",100]],
+ no:"Sindrome da bassa T3 post-CEC, difficile svezzamento dalla CEC, gestione del donatore d'organo. Bolo 0,4 mcg/kg seguito da infusione. Monitorare frequenza cardiaca e aritmie."},
+{n:"Octreotide",c:"met",u:["mcg/h"],mn:25,mt:50,mx:50,
+ d:[[500,"mcg",50],[1000,"mcg",100]],
+ no:"Chilotorace post-cardiochirurgico, emorragia digestiva da varici, fistole ad alta portata. Sorvegliare glicemia e frequenza cardiaca."},
+{n:"Somatostatina",c:"met",u:["mcg/kg/h","mcg/h"],mn:3,mt:3.5,mx:4,
+ d:[[3,"mg",50],[6,"mg",100]],
+ no:"3,5 mcg/kg/h (≈250 mcg/h) nell'emorragia da varici esofagee e nelle fistole pancreatiche. Emivita brevissima: evitare interruzioni superiori a 3–5 minuti."},
+{n:"Glucagone",c:"met",u:["mg/h"],mn:2,mt:5,mx:10,
+ d:[[10,"mg",50],[20,"mg",100]],
+ no:"Antidoto nell'intossicazione da β-bloccanti e calcio-antagonisti: bolo 3–10 mg, poi infusione pari alla dose che ha ottenuto risposta. Vomito e iperglicemia frequenti; considerare antiemetico."},
+{n:"Aminofillina",c:"met",u:["mg/kg/h","mg/h"],mn:.2,mt:.5,mx:.7,
+ d:[[240,"mg",50],[480,"mg",100]],
+ no:"Broncospasmo refrattario, bradicardia post-trapianto cardiaco. Carico 5 mg/kg in 30 min (omettere se già in terapia). Finestra terapeutica stretta (10–20 mcg/ml): monitorare i livelli, aritmie e convulsioni."},
+
+/* ---------- DIURETICI E RENALE ---------- */
+{n:"Furosemide",c:"diu",u:["mg/h","mg/kg/h"],mn:2,mt:5,mx:40,
+ d:[[250,"mg",50],[500,"mg",50],[125,"mg",50]],
+ no:"Infusione continua preferibile ai boli nella congestione refrattaria post-cardiochirurgica (effetto più prevedibile, minore ototossicità). Bolo di carico 20–40 mg prima dell'infusione. Sorvegliare K⁺, Mg²⁺, Na⁺, alcalosi metabolica ipocloremica e funzione renale. Velocità di infusione ≤4 mg/min (ototossicità)."},
+{n:"Torasemide",c:"diu",u:["mg/h"],mn:2,mt:5,mx:20,
+ d:[[200,"mg",50],[100,"mg",50]],
+ no:"Diuretico dell'ansa a biodisponibilità e durata superiori alla furosemide; rapporto di conversione ≈ 1 mg torasemide : 2–4 mg furosemide."},
+{n:"Mannitolo 18%",c:"diu",u:["g/h","g/kg/h"],mn:12.5,mt:25,mx:50,
+ d:[[18,"g",100],[54,"g",300],[100,"g",500]],
+ no:"Ipertensione endocranica, priming della CEC, diuresi forzata. 18% = 0,18 g/ml. Controllare osmolarità plasmatica (<320 mOsm/l) e gap osmolare; rischio di AKI, ipovolemia, iponatriemia. Filtro se cristallizzato."},
+
+/* ---------- ELETTROLITI E TAMPONI ---------- */
+{n:"Potassio cloruro (KCl)",c:"el",u:["mEq/h","mEq/min","mmol/h"],mn:5,mt:10,mx:20,k:{mEq:1,mmol:1,g:1/13.41},
+ d:[[40,"mEq",100],[20,"mEq",50],[100,"mEq",500],[40,"mEq",500]],
+ no:"1 mEq K⁺ = 1 mmol. Via periferica: ≤10 mEq/h e concentrazione ≤40 mEq/l. Via centrale: fino a 20 mEq/h (eccezionalmente 40 con monitoraggio ECG continuo e pompa dedicata). Correggere sempre anche la magnesiemia. Mai in bolo."},
+{n:"Magnesio solfato",c:"el",u:["g/h","mEq/h","mmol/h"],mn:.5,mt:1,mx:2,k:{g:1,mEq:8.12,mmol:4.06},
+ d:[[2,"g",50],[4,"g",100],[1,"g",50],[5,"g",100]],
+ no:"1 g MgSO₄ = 8,12 mEq = 4,06 mmol = 98,6 mg Mg elementare. Profilassi/terapia della FA post-cardiochirurgica, torsione di punta, ipomagnesiemia. Bolo in genere 1–2 g in 30–60 min; infusione di mantenimento 0,5–1 (max 2) g/h secondo magnesiemia e funzione renale. Sorvegliare riflessi osteotendinei, frequenza respiratoria, blocco AV (antidoto: calcio gluconato)."},
+{n:"Calcio cloruro 10%",c:"el",u:["g/h","mEq/h","mmol/h","mg/kg/h"],mn:.5,mt:1,mx:2,k:{g:1,mEq:13.6,mmol:6.8},
+ d:[[1,"g",10],[2,"g",100],[1,"g",100]],
+ no:"1 g CaCl₂ 10% = 13,6 mEq = 272 mg di calcio elementare (≈3× il gluconato). Ipocalcemia ionizzata post-CEC, iperkaliemia, tossicità da calcio-antagonisti, anticoagulazione regionale con citrato. Solo via centrale (necrosi da stravaso); incompatibile con bicarbonato e fosfati."},
+{n:"Calcio gluconato 10%",c:"el",u:["g/h","mEq/h","mmol/h"],mn:1,mt:2,mx:4,k:{g:1,mEq:4.65,mmol:2.325},
+ d:[[10,"g",100],[2,"g",50],[1,"g",10]],
+ no:"1 g = 4,65 mEq = 93 mg di calcio elementare. Meno irritante del cloruro: utilizzabile per via periferica. Monitorare il calcio ionizzato, non quello totale."},
+{n:"Sodio bicarbonato 8,4%",c:"el",u:["mEq/h","mEq/min","mmol/h"],mn:10,mt:50,mx:100,k:{mEq:1,mmol:1,g:0.084},
+ d:[[100,"mEq",100],[50,"mEq",50],[150,"mEq",1000]],
+ no:"8,4% = 1 mEq/ml; 1,4% = 0,167 mEq/ml (isotonica). Acidosi metabolica grave (pH <7,1), iperkaliemia, tossicità da bloccanti dei canali del sodio, alcalinizzazione urinaria. Rischi: ipernatriemia, ipokaliemia, calcio ionizzato ridotto, ipercapnia (richiede ventilazione adeguata). Incompatibile con calcio e catecolamine."},
+{n:"Sodio cloruro 3% (ipertonica)",c:"el",u:["mEq/h","mmol/h"],mn:10,mt:25,mx:50,k:{mEq:1,mmol:1,g:0.05844},
+ d:[[51.3,"mEq",100],[256.5,"mEq",500],[85.5,"mEq",250]],
+ no:"NaCl 3% = 513 mEq/l di Na⁺ (0,513 mEq/ml). Iponatriemia sintomatica ed edema cerebrale. Correzione massima 8–10 mEq/l nelle 24 h (6 se rischio elevato di mielinolisi). Controllo della natriemia ogni 2–4 h; via centrale preferibile."},
+{n:"Potassio fosfato",c:"el",u:["mmol/h"],mn:2,mt:5,mx:7.5,
+ d:[[30,"mmol",100],[15,"mmol",50]],
+ no:"Ipofosfatemia (frequente dopo CEC, in refeeding e in CRRT). Velocità massima 7,5 mmol/h. Attenzione al carico contestuale di potassio (1 mmol di fosfato ≈ 1,5 mEq di K⁺) e al rischio di ipocalcemia e precipitazione con il calcio."},
+{n:"Citrato trisodico 4% (CRRT)",c:"el",u:["mmol/h"],mn:10,mt:25,mx:45,
+ d:[[136,"mmol",1000],[68,"mmol",500]],
+ no:"Anticoagulazione regionale in CRRT: dose 3–4 mmol per litro di flusso ematico. Target calcio ionizzato post-filtro 0,25–0,35 mmol/l e sistemico 1,1–1,3 mmol/l. Sospetto di accumulo se rapporto Ca totale/Ca ionizzato >2,5, acidosi metabolica con gap anionico e fabbisogno crescente di calcio."},
+
+/* ---------- ANTINFETTIVI IN INFUSIONE CONTINUA/ESTESA ---------- */
+{n:"Vancomicina (infusione continua)",c:"inf",u:["mg/h","mg/kg/h"],mn:40,mt:80,mx:125,
+ d:[[2000,"mg",500],[1000,"mg",250],[3000,"mg",500]],
+ no:"Dose di carico 25–30 mg/kg, poi infusione continua 30–60 mg/kg/24 h. Target di steady-state 20–25 mg/l (AUC/MIC 400–600). Lume dedicato: incompatibile con numerosi farmaci. Monitorare funzione renale e livelli quotidianamente."},
+{n:"Meropenem (infusione estesa)",c:"inf",u:["mg/h","g/h"],mn:125,mt:250,mx:500,
+ d:[[1000,"mg",100],[2000,"mg",100],[6000,"mg",240]],
+ no:"Infusione estesa 3 h o continua per ottimizzare il tempo sopra la MIC (target 100% fT>4×MIC nel paziente critico). Stabilità limitata a temperatura ambiente: rinnovare la preparazione ogni 6–8 h. Adeguare in AKI/CRRT."},
+{n:"Piperacillina/tazobactam",c:"inf",u:["g/h","mg/h"],mn:.33,mt:.67,mx:.94,
+ d:[[16,"g",250],[12,"g",250],[4,"g",100]],
+ no:"ATTENZIONE: tutte le quantità sono espresse come PIPERACILLINA (1 flacone 4 g/0,5 g = 4 g di piperacillina). 16 g/24 h in infusione continua ≈0,67 g/h. Dose di carico 4 g/0,5 g in 30 min prima dell'infusione continua (BLING III 2024: infusione continua/estesa dei β-lattamici nel paziente critico). Incompatibile con aminoglicosidi in Y. Sorvegliare la funzione renale (nefrotossicità in associazione a vancomicina)."},
+{n:"Cefazolina (infusione continua)",c:"inf",u:["g/h","mg/h"],mn:.17,mt:.25,mx:.5,
+ d:[[6,"g",250],[4,"g",100]],
+ no:"Profilassi/terapia in cardiochirurgia: 6 g/24 h in continua dopo carico di 2 g. In profilassi intraoperatoria ridosare dopo 4 h o dopo la CEC."},
+{n:"Cefepime (infusione estesa)",c:"inf",u:["g/h","mg/h"],mn:.17,mt:.25,mx:.5,
+ d:[[6,"g",250],[2,"g",100]],
+ no:"6 g/24 h in continua nel paziente critico con clearance conservata. Sorvegliare la neurotossicità (encefalopatia, mioclonie) in insufficienza renale non corretta."},
+
+/* ---------- PERSONALIZZATO ---------- */
+{n:"Farmaco personalizzato",c:"cus",u:DOSE_UNITS.slice(),mn:0,mt:0,mx:0,
+ d:[[1,"mg",50]],
+ no:"Inserire nome, unità di dose, range di riferimento e diluizione. Tutte le unità richieste sono disponibili: mg/kg/min, mg/kg/h, mcg/kg/min, mcg/kg/h, mcg/min, mg/min, mg/h, U/min, U/h, mEq/min, mEq/h, g/min, g/h, mmol/h, ng/kg/min."}
+];
+
+/* ============================================================
+   4. STATO E UTILITY
+   ============================================================ */
+let cur = D[0], filtCat = 'all', lastEdited = 'dose', prevUnit = null;
+const $ = id => document.getElementById(id);
+const WMIN = 0.3, WMAX = 350;
+/* Peso: nessun valore di ripiego. Se il campo è vuoto o fuori range restituisce NaN
+   e tutti i calcoli peso-dipendenti mostrano «—» (in v1.1 il campo vuoto diventava 70 kg). */
+const W = () => { const v = parseFloat(($('peso').value+'').replace(',','.'));
+  return (isFinite(v) && v>=WMIN && v<=WMAX) ? v : NaN; };
+/* Valori numerici: negativi non ammessi (dose, velocità, quantità, volume) */
+const val = el => { const v = parseFloat((el.value+'').replace(',','.')); return (isFinite(v) && v>=0)? v : NaN; };
+const K = () => cur && cur.k;      // fattori stechiometrici del farmaco corrente (se presenti)
+
+/* Formattazione: almeno 3 cifre significative anche per valori molto piccoli */
+function f(v){
+  if(v===null||!isFinite(v)) return '—';
+  if(v===0) return '0';
+  const a=Math.abs(v);
+  let dec = a>=1000?0 : a>=100?1 : a>=1?2 : Math.min(8, 2-Math.floor(Math.log10(a)));
+  let s=(v*(1+1e-12)).toFixed(dec);          // correzione binaria: 7,875 → 7,88 e non 7,87
+  if(s.indexOf('.')>=0) s=s.replace(/0+$/,'').replace(/\.$/,'');
+  return s.replace('.',',');
+}
+/* Valore da riscrivere in un campo input (punto decimale, stessa precisione della visualizzazione) */
+function fin(v){ return f(v).replace(',','.'); }
+
+/* ============================================================
+   5. COSTRUZIONE INTERFACCIA
+   ============================================================ */
+function buildChips(){
+  const c=$('chips'); c.innerHTML='';
+  const add=(k,l)=>{ const b=document.createElement('button');
+    b.className='chip'+(filtCat===k?' on':''); b.textContent=l; b.dataset.k=k;
+    b.onclick=()=>{ filtCat=k; buildChips(); buildList(); }; c.appendChild(b); };
+  add('all','Tutti');
+  Object.keys(CAT).forEach(k=>add(k,CAT[k][0]));
+}
+
+function buildList(){
+  const q=($('q').value||'').toLowerCase().trim();
+  const box=$('dlist'); box.innerHTML='';
+  const items=D.filter(d=>(filtCat==='all'||d.c===filtCat) && (!q||d.n.toLowerCase().includes(q)));
+  items.forEach(d=>{
+    const b=document.createElement('button');
+    b.className='ditem'+(d===cur?' on':'');
+    b.innerHTML='<span class="dot" style="background:'+CAT[d.c][1]+'"></span><b></b><i>'+d.u[0]+'</i>';
+    b.querySelector('b').textContent=d.n;
+    b.onclick=()=>{ cur=d; loadDrug(); buildList(); document.getElementById('calc').scrollIntoView({block:'start',behavior:'smooth'}); };
+    box.appendChild(b);
+  });
+  if(!items.length) box.innerHTML='<div style="padding:16px;color:var(--dim);font-size:13px">Nessun farmaco corrisponde alla ricerca. Prova con meno lettere o scegli «Farmaco personalizzato».</div>';
+  $('count').textContent = items.length+'/'+D.length;
+}
+
+function fillSelect(sel,arr,v){
+  sel.innerHTML='';
+  arr.forEach(x=>{ const o=document.createElement('option'); o.value=x; o.textContent=x; sel.appendChild(o); });
+  if(v!==undefined) sel.value=v;
+}
+
+/* ---- Carica farmaco selezionato ---- */
+function loadDrug(){
+  const isC = cur.c==='cus';
+  $('fsCustom').classList.toggle('hidden',!isC);
+  $('dname').textContent = isC ? ($('cName').value || 'Farmaco personalizzato') : cur.n;
+  $('dcat').textContent = CAT[cur.c][0];
+  $('dcat').style.borderColor = CAT[cur.c][1];
+  $('dcat').style.color = CAT[cur.c][1];
+  const hasPed = !!PED[cur.n];
+  $('dnote').textContent = cur.no + ((PEDIA && hasPed && PED[cur.n].pn) ? '  ▸ PEDIATRIA: '+PED[cur.n].pn : '');
+  $('dped').classList.toggle('hidden', !(PEDIA && hasPed));
+  $('dpedwarn').classList.toggle('hidden', !(PEDIA && !hasPed && !isC));
+
+  if(isC && !$('cUnit').options.length){ fillSelect($('cUnit'),DOSE_UNITS,'mcg/kg/min'); }
+
+  // unità di dose: in modalità pediatrica si parte dall'unità del range pediatrico (sempre presente nell'elenco)
+  let units = isC ? DOSE_UNITS : cur.u.slice(), u0 = isC ? $('cUnit').value : cur.u[0];
+  if(PEDIA && hasPed && !isC){ const pu=PED[cur.n].u; if(!units.includes(pu)) units.unshift(pu); u0=pu; }
+  fillSelect($('dunit'), units, u0);
+  prevUnit = u0;
+  fillSelect($('qunit'), CONC_UNITS);
+
+  // regole pediatriche di diluizione: solo per farmaci titolati in mcg/kg/min (unità di massa)
+  const ruleOk = !isC && units.includes('mcg/kg/min');
+  ['r6','r06','r3'].forEach(id=>{ $(id).disabled=!ruleOk; $(id).style.opacity=ruleOk?1:.4; });
+
+  // preparazioni
+  const p=$('preset'); p.innerHTML='';
+  cur.d.forEach((x,i)=>{ const o=document.createElement('option'); o.value=i;
+    o.textContent = f(x[0])+' '+x[1]+' in '+f(x[2])+' ml  ('+f(x[0]/x[2])+' '+x[1]+'/ml)'; p.appendChild(o); });
+  const o=document.createElement('option'); o.value='x'; o.textContent='Diluizione personalizzata…'; p.appendChild(o);
+  p.value='0'; applyPreset();
+
+  // dose di partenza = mantenimento (pediatrico se attivo), espresso nell'unità selezionata
+  const R = ranges();
+  const mt = isC ? val($('cMant')) : R.mt;
+  $('dose').value = isFinite(mt)&&mt>0 ? mt : '';
+  lastEdited='dose'; calc();
+}
+
+function applyPreset(){
+  const i=$('preset').value; if(i==='x') return;
+  const x=cur.d[+i]; $('qty').value=x[0]; $('qunit').value=x[1]; $('vol').value=x[2];
+  calc();
+}
+
+/* ============================================================
+   6. MOTORE DI CALCOLO
+   ============================================================ */
+function concPerMl(){
+  const q=val($('qty')), v=val($('vol'));
+  if(!isFinite(q)||!isFinite(v)||v<=0) return null;
+  return {c:q/v, u:$('qunit').value, q:q, v:v};
+}
+
+function ranges(){
+  if(cur.c==='cus') return {mn:val($('cMin')),mt:val($('cMant')),mx:val($('cMax')),u:$('cUnit').value,ped:false};
+  if(PEDIA && PED[cur.n]){ const p=PED[cur.n]; return {mn:p.mn,mt:p.mt,mx:p.mx,u:p.u,ped:true}; }
+  return {mn:cur.mn,mt:cur.mt,mx:cur.mx,u:cur.u[0],ped:false};
+}
+
+function doseToRate(dose,du){
+  const C=concPerMl(); if(!C||!isFinite(dose)||C.c<=0) return null;
+  const p=parseU(du);
+  if(p.kg && !(W()>0)) return NaN;
+  const perMin = dose*(p.kg?W():1)/(p.t==='h'?60:1);
+  const x = convMass(perMin,p.mass,C.u,K());
+  if(x===null) return null;
+  return x/C.c*60;                     // ml/h
+}
+function rateToDose(mlh,du){
+  const C=concPerMl(); if(!C||!isFinite(mlh)) return null;
+  const p=parseU(du);
+  if(p.kg && !(W()>0)) return NaN;
+  const massPerMin = mlh/60*C.c;       // nell'unità della concentrazione
+  const x = convMass(massPerMin,C.u,p.mass,K());
+  if(x===null) return null;
+  return x*(p.t==='h'?60:1)/(p.kg?W():1);
+}
+
+/* Autonomia in ore:minuti, arrotondata al minuto (in v1.1 poteva comparire «2:60») */
+function hhmm(h){ const m=Math.round(h*60); return Math.floor(m/60)+':'+String(m%60).padStart(2,'0'); }
+
+function calc(){
+  const du=$('dunit').value, C=concPerMl(), R=ranges(), p=parseU(du);
+  $('conc').textContent = C ? ('Concentrazione: '+f(C.c)+' '+C.u+'/ml  ·  '+f(C.c*1000)+' '+C.u+'/l  ·  totale '+f(C.q)+' '+C.u+' in '+f(C.v)+' ml')
+                            : 'Inserisci quantità e volume (valori positivi) per calcolare la concentrazione.';
+
+  let dose, mlh;
+  if(lastEdited==='rate'){ mlh=val($('rate')); dose=rateToDose(mlh,du);
+    $('dose').value = (dose!==null&&isFinite(dose)) ? fin(dose) : ''; }
+  else { dose=val($('dose')); mlh=doseToRate(dose,du);
+    $('rate').value = (mlh!==null&&isFinite(mlh)) ? fin(mlh) : ''; }
+  if(dose===null) dose=NaN;
+  if(mlh===null) mlh=NaN;
+
+  $('dose').classList.toggle('drive',lastEdited==='dose');
+  $('rate').classList.toggle('drive',lastEdited==='rate');
+
+  // avvisi
+  const msg=[];
+  const wRaw=parseFloat(($('peso').value+'').replace(',','.'));
+  const needW = p.kg || parseU(R.u||du).kg;
+  if(!(W()>0)) msg.push(needW
+      ? 'PESO NON VALIDO: inserisci un peso tra '+f(WMIN)+' e '+f(WMAX)+' kg. I calcoli per kg sono sospesi (nessun peso di ripiego).'
+      : 'Peso non valido ('+f(WMIN)+'–'+f(WMAX)+' kg): i calcoli in unità non per kg proseguono, il confronto con il range per kg è sospeso.');
+  else if(PEDIA && wRaw>60) msg.push('Modalità pediatrica con peso '+f(wRaw)+' kg: verificare che il paziente sia pediatrico.');
+  else if(!PEDIA && wRaw<25) msg.push('Peso '+f(wRaw)+' kg in modalità adulto: per i pazienti pediatrici attivare «Pediatrico».');
+  if(C && convMass(1,p.mass,C.u,K())===null)
+    msg.push('Unità non convertibili: la dose è espressa in «'+p.mass+'» ma la concentrazione in «'+C.u+'». Allinea le due unità (massa con massa, U con U, mEq con mEq, mmol con mmol).');
+  if(isFinite(val($('dose')))===false && $('dose').value!=='' ) msg.push('Dose non valida (valori negativi non ammessi).');
+  if(isFinite(mlh) && mlh>0 && mlh<0.1) msg.push('Velocità <0,1 ml/h: sotto la risoluzione di molte pompe-siringa. Usare una concentrazione più diluita.');
+  if(isFinite(mlh) && mlh>200) msg.push('Velocità >200 ml/h: improbabile per un\'infusione continua. Ricontrollare dose, unità e concentrazione.');
+  const w=$('warn');
+  if(msg.length){ w.style.display='block'; w.innerHTML=msg.map(x=>'<div></div>').join(''); [...w.children].forEach((d,i)=>d.textContent='⚠ '+msg[i]); }
+  else w.style.display='none';
+
+  // output
+  const perH = isFinite(dose)&&(!p.kg||W()>0) ? dose*(p.kg?W():1)*(p.t==='min'?60:1) : NaN;
+  $('oMlh').textContent = f(mlh);
+  $('oMlm').textContent = f(mlh/60);
+  $('oDh').textContent  = f(perH);
+  $('oDhU').textContent = p.mass+'/h';
+  $('oD24').textContent = f(perH*24);
+  $('oD24U').textContent= p.mass+'/24 h';
+  $('oAut').textContent = (C&&mlh>0) ? hhmm(C.v/mlh) : '—';
+
+  drawGauge(dose,du,R);
+  drawEquiv(dose,du);
+  drawPed(mlh);
+  $('btnPush').classList.toggle('hidden', !SC.some(s=>s.n===cur.n));
+}
+
+/* ---- Pannello pediatrico ---- */
+function hollidaySegar(w){
+  if(w<=10) return w*100;
+  if(w<=20) return 1000+(w-10)*50;
+  return 1500+(w-20)*20;
+}
+function drawPed(mlh){
+  $('pedBox').classList.toggle('hidden',!PEDIA);
+  if(!PEDIA) return;
+  const w=W(), mant=hollidaySegar(w);
+  $('pMant').textContent=f(mant);
+  if(isFinite(mlh)&&mlh>0){
+    $('pMlkg').textContent=f(mlh/w);
+    $('pVol24').textContent=f(mlh*24/w);
+    $('pQuota').textContent=f(mlh*24/mant*100);
+  } else { $('pMlkg').textContent='—'; $('pVol24').textContent='—'; $('pQuota').textContent='—'; }
+}
+function applyRule(mgPerKg,vol){
+  if(!(W()>0)) { calc(); return; }
+  $('qty').value=+(mgPerKg*W()).toFixed(4); $('qunit').value='mg'; $('vol').value=vol;
+  $('preset').value='x'; calc();
+}
+
+/* ============================================================
+   6b. PUNTEGGI VASOATTIVI
+   ============================================================ */
+function buildScores(){
+  const b=$('scBody'); b.innerHTML='';
+  SC.forEach((s,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td><b></b></td>'+
+      '<td><input class="sc-in" data-i="'+i+'" type="number" step="any" inputmode="decimal" value="'+(SCV[s.n]||'')+'"></td>'+
+      '<td style="font-family:var(--mono);font-size:12px;color:var(--dim)">'+s.iu+'</td>'+
+      '<td class="num" id="cv'+i+'">—</td><td class="num" id="ce'+i+'">—</td>';
+    tr.children[0].querySelector('b').textContent=s.n;
+    b.appendChild(tr);
+  });
+  b.querySelectorAll('.sc-in').forEach(el=>el.oninput=()=>{
+    SCV[SC[+el.dataset.i].n]=parseFloat((el.value+'').replace(',','.'));
+    el.classList.toggle('hot', !!parseFloat(el.value)); calcScores(); });
+  calcScores();
+}
+
+function calcScores(){
+  const w=W(); let vis=0, nee=0;
+  SC.forEach((s,i)=>{
+    const d=SCV[s.n];
+    let cv=0, ce=0;
+    if(isFinite(d)&&d>0){
+      if(s.vu){ const x=convDose(d,s.iu,s.vu,w); if(x!==null) cv=x*s.v; }
+      if(s.nu){ const y=convDose(d,s.iu,s.nu,w); if(y!==null) ce=y*s.e; }
+    }
+    vis+=cv; nee+=ce;
+    const a=$('cv'+i), c=$('ce'+i);
+    if(a){ a.textContent = s.vu? f(cv) : 'n.a.'; a.style.color = cv? 'var(--gold)':'var(--dim)'; }
+    if(c){ c.textContent = s.nu? f(ce) : 'n.a.'; c.style.color = ce? 'var(--teal)':'var(--dim)'; }
+  });
+  const map=val($('map'));
+  if(!isFinite(vis)||!isFinite(nee)){
+    $('sVis').textContent='—'; $('sNee').textContent='—'; $('sVdi').textContent='—'; $('sVei').textContent='—';
+    $('bVis').className='band b4'; $('bVis').textContent='peso non valido';
+    $('bNee').className='band b4'; $('bNee').textContent='peso non valido'; return; }
+  $('sVis').textContent=f(vis);
+  $('sNee').textContent=f(nee);
+  $('sVdi').textContent=(vis>0&&map>0)? f(vis/map) : '—';
+  $('sVei').textContent=(vis>0&&map>0)? f(map/vis) : '—';
+
+  const bv=$('bVis'), bn=$('bNee');
+  const set=(el,cls,txt)=>{ el.className='band '+cls; el.textContent=txt; };
+  if(!vis)            set(bv,'b1','nessun supporto');
+  else if(vis<10)     set(bv,'b1','supporto basso');
+  else if(vis<20)     set(bv,'b2','supporto moderato');
+  else if(vis<30)     set(bv,'b3','supporto elevato');
+  else                set(bv,'b4','supporto molto elevato');
+
+  if(!nee)            set(bn,'b1','nessun vasopressore');
+  else if(nee<0.1)    set(bn,'b1','dose bassa');
+  else if(nee<0.3)    set(bn,'b2','dose intermedia');
+  else if(nee<1)      set(bn,'b3','dose elevata');
+  else                set(bn,'b4','dose molto elevata (≥1)');
+}
+
+/* ---- Righello di titolazione ---- */
+function drawGauge(dose,du,R){
+  const ok = isFinite(R.mn)&&isFinite(R.mx)&&R.mx>0;
+  $('gaugeBox').style.opacity = ok?1:.45;
+  if(!ok){ $('verdict').className='verdict v-ok';
+    $('verdict').textContent='Nessun range di riferimento impostato per questo farmaco.'; return; }
+
+  const cd = du===R.u ? dose : convDose(dose,du,R.u,W(),K());           // dose attuale nell'unità di riferimento
+  const scale = R.mx*1.35;
+  const pc = x => Math.max(0,Math.min(100,x/scale*100));
+  $('gzLow').style.left='0%';  $('gzLow').style.width=pc(R.mn)+'%';
+  $('gzMid').style.left=pc(R.mn)+'%'; $('gzMid').style.width=(pc(R.mx)-pc(R.mn))+'%';
+  $('gzHigh').style.left=pc(R.mx)+'%'; $('gzHigh').style.right='0';
+  $('gMin').textContent=f(R.mn)+' '+R.u;
+  $('gMant').textContent=f(R.mt)+' '+R.u;
+  $('gMax').textContent=f(R.mx)+' '+R.u;
+  $('gCur').textContent=(cd===null?'—':f(cd)+' '+R.u);
+  $('gmark').style.left=(cd===null?0:pc(cd))+'%';
+
+  const v=$('verdict');
+  if(cd===null||!isFinite(cd)){ v.className='verdict v-ok'; v.textContent='Inserisci una dose o una velocità per la verifica del range.'; return; }
+  const EPS=1e-9*R.mx;                              // tolleranza numerica nei confronti
+  if(cd<R.mn-EPS){ v.className='verdict v-low';
+    v.textContent='Sotto la dose minima di riferimento ('+f(R.mn)+' '+R.u+'). Verifica l\'indicazione o aumenta secondo prescrizione.'; }
+  else if(cd<=R.mt+EPS){ v.className='verdict v-ok';
+    v.textContent='Nella fascia bassa-terapeutica (minima → mantenimento).'; }
+  else if(cd<=R.mx+EPS){ v.className='verdict v-high';
+    v.textContent='Sopra il mantenimento, entro la dose massima. Rivaluta la risposta emodinamica e la titolazione.'; }
+  else { v.className='verdict v-over';
+    v.textContent='DOSE OLTRE IL MASSIMO DI RIFERIMENTO ('+f(R.mx)+' '+R.u+'). Ricontrolla prescrizione, diluizione e peso, e conferma con il medico.'; }
+}
+
+/* ---- Equivalenze ---- */
+function drawEquiv(dose,du){
+  const p=parseU(du);
+  let set = p.mass==='U' ? ['U/kg/min','U/kg/h','U/min','U/h']
+    : p.mass==='mEq' ? ['mEq/kg/h','mEq/min','mEq/h']
+    : p.mass==='mmol' ? ['mmol/kg/h','mmol/min','mmol/h']
+    : (p.mass==='ng' ? ['ng/kg/min','ng/kg/h'] : []).concat(['mcg/kg/min','mcg/kg/h','mg/kg/h','mcg/min','mg/min','mg/h','g/h']);
+  // elettroliti con fattori stechiometrici: mostra anche le altre famiglie (g ⇄ mEq ⇄ mmol)
+  const k=K();
+  if(k){ if('g' in k && p.mass!=='g' && FAM[p.mass][0]!=='m') set=set.concat(['g/h','mg/h']);
+         if('mEq' in k && p.mass!=='mEq') set=set.concat(['mEq/h']);
+         if('mmol' in k && p.mass!=='mmol') set=set.concat(['mmol/h']); }
+  set=[...new Set(set)];
+  $('equiv').innerHTML = set.map(u=>{
+    const v=convDose(dose,du,u,W(),K());
+    return '<tr><td style="color:var(--dim);width:42%">'+u+'</td><td class="num" style="font-size:15px">'+f(v)+'</td></tr>';
+  }).join('');
+}
+
+/* ============================================================
+   7. TABELLA SINOTTICA
+   ============================================================ */
+function buildTable(){
+  const t=$('tbody'); t.innerHTML='';
+  Object.keys(CAT).forEach(k=>{
+    const rows=D.filter(d=>d.c===k); if(!rows.length) return;
+    t.insertAdjacentHTML('beforeend','<tr class="cat"><td colspan="7">'+CAT[k][0]+'</td></tr>');
+    rows.forEach(d=>{
+      const dil=d.d.map(x=>f(x[0])+' '+x[1]+'/'+f(x[2])+' ml').join(' · ');
+      const tr=document.createElement('tr');
+      tr.innerHTML='<td><b></b></td><td class="num">'+d.u.join('<br>')+'</td>'+
+        '<td class="num">'+(d.mn?f(d.mn):'—')+'</td><td class="num">'+(d.mt?f(d.mt):'—')+'</td>'+
+        '<td class="num">'+(d.mx?f(d.mx):'—')+'</td><td style="font-size:12px">'+dil+'</td>'+
+        '<td style="font-size:12px;min-width:280px"></td>';
+      tr.children[0].querySelector('b').textContent=d.n;
+      tr.children[6].textContent=d.no;
+      t.appendChild(tr);
+    });
+  });
+}
+
+/* ============================================================
+   8. EVENTI
+   ============================================================ */
+$('q').oninput = buildList;
+$('peso').oninput = ()=>{ calc(); calcScores(); };
+$('preset').onchange = applyPreset;
+['qty','vol'].forEach(id=>$(id).oninput=()=>{ $('preset').value='x'; calc(); });
+$('qunit').onchange = ()=>{ $('preset').value='x'; calc(); };
+$('dose').oninput = ()=>{ lastEdited='dose'; calc(); };
+$('rate').oninput = ()=>{ lastEdited='rate'; calc(); };
+$('dunit').onchange = ()=>{
+  const nu=$('dunit').value, d=val($('dose'));
+  if(prevUnit && prevUnit!==nu && isFinite(d)){
+    const c=convDose(d,prevUnit,nu,W(),K());
+    if(c!==null && isFinite(c)) $('dose').value=fin(c);
+    else { $('dose').value=''; }
+  }
+  prevUnit=nu; lastEdited='dose'; calc();
+};
+['cName','cMin','cMant','cMax'].forEach(id=>$(id).oninput=()=>{
+  if(id==='cName') $('dname').textContent=$('cName').value||'Farmaco personalizzato'; calc(); });
+$('cUnit').onchange = ()=>{ $('dunit').value=$('cUnit').value; prevUnit=$('cUnit').value; lastEdited='dose'; calc(); };
+
+$('btnMin').onclick  = ()=>{ const R=ranges(); setRef(R.mn,R.u); };
+$('btnMant').onclick = ()=>{ const R=ranges(); setRef(R.mt,R.u); };
+$('btnMax').onclick  = ()=>{ const R=ranges(); setRef(R.mx,R.u); };
+function setRef(v,u){
+  if(!isFinite(v)||!v) return;
+  const target=$('dunit').value;
+  const conv = u===target ? v : convDose(v,u,target,W(),K());
+  if(conv===null) return;
+  if(!isFinite(conv)) return;
+  $('dose').value=fin(conv); lastEdited='dose'; calc();
+}
+
+function view(v){
+  ['calc','tabella','scores'].forEach(x=>$(x).classList.toggle('hidden',x!==v));
+}
+$('btnTab').onclick = ()=>{ view('tabella'); buildTable(); };
+$('btnBack').onclick= ()=>view('calc');
+$('btnSc').onclick  = ()=>{ view('scores'); buildScores(); };
+$('btnBack2').onclick=()=>view('calc');
+$('btnClr').onclick = ()=>{ Object.keys(SCV).forEach(k=>delete SCV[k]); buildScores(); };
+$('map').oninput = calcScores;
+
+/* Invio della dose corrente ai punteggi */
+$('btnPush').onclick = ()=>{
+  const s=SC.find(x=>x.n===cur.n); if(!s) return;
+  const v=convDose(val($('dose')),$('dunit').value,s.iu,W());
+  if(v===null||!isFinite(v)) return;
+  SCV[s.n]=+v.toPrecision(6);
+  view('scores'); buildScores();
+};
+
+/* Modalità adulto / pediatrico */
+$('seg').onclick = e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  PEDIA = b.dataset.m==='pe';
+  document.body.classList.toggle('ped',PEDIA);
+  [...$('seg').children].forEach(x=>x.classList.toggle('on',x===b));
+  if(PEDIA && +$('peso').value===70) $('peso').value=10;
+  if(!PEDIA && +$('peso').value<=20) $('peso').value=70;
+  loadDrug(); calcScores();
+};
+$('r6').onclick  = ()=>applyRule(6,100);
+$('r06').onclick = ()=>applyRule(0.6,100);
+$('r3').onclick  = ()=>applyRule(3,50);
+
+/* ============================================================
+   9. AVVIO + PWA
+   ============================================================ */
+buildChips(); buildList(); loadDrug(); buildScores();
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
